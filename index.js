@@ -4,6 +4,11 @@ import axios from "axios";
 const app = express();
 app.use(express.json());
 
+// ✅ ROOT ROUTE (PUT IT HERE)
+app.get("/", (req, res) => {
+  res.send("WhatsApp Webhook is running 🚀");
+});
+
 // ==============================
 // 1️⃣ VERIFY WEBHOOK (Meta step)
 // ==============================
