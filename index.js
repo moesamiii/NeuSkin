@@ -1,142 +1,83 @@
-// ==============================
-// index.js (FINAL MERGED VERSION)
-// ==============================
-
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-const path = require("path");
-const { registerWebhookRoutes } = require("./webhookHandler");
+import express from "express";
+import axios from "axios";
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-// ---------------------------------------------
-// Environment Variables
-// ---------------------------------------------
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-
-// ---------------------------------------------
-// Startup logs
-// ---------------------------------------------
-console.log("🚀 Server starting...");
-console.log("✅ VERIFY_TOKEN loaded:", !!VERIFY_TOKEN);
-console.log("✅ WHATSAPP_TOKEN loaded:", !!WHATSAPP_TOKEN);
-console.log("✅ PHONE_NUMBER_ID:", PHONE_NUMBER_ID || "❌ Missing");
-
-// ---------------------------------------------
-// Root Route
-// ---------------------------------------------
+// ✅ ROOT ROUTE (PUT IT HERE)
 app.get("/", (req, res) => {
-  res.send("✅ WhatsApp Webhook is running 🚀");
+  res.send("WhatsApp Webhook is running 🚀");
 });
 
-// ---------------------------------------------
-// Dashboard
-// ---------------------------------------------
-app.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "dashboard.html"));
-});
+// ==============================
+// 1️⃣ VERIFY WEBHOOK (Meta step)
+// ==============================
+app.get("/webhook", (req, res) => {
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-// ---------------------------------------------
-// Fetch bookings (Supabase)
-// ---------------------------------------------
-app.get("/api/bookings", async (req, res) => {
-  try {
-    const { getAllBookingsFromSupabase } = require("./databaseHelper");
-    const data = await getAllBookingsFromSupabase();
-    res.json(data);
-  } catch (err) {
-    console.error("❌ Error fetching bookings:", err);
-    res.status(500).json({ error: "Failed to fetch bookings" });
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
   }
+
+  return res.sendStatus(403);
 });
 
-// ---------------------------------------------
-// Send WhatsApp Message (TEXT + IMAGE)
-// ---------------------------------------------
-app.post("/sendWhatsApp", async (req, res) => {
+// ==============================
+// 2️⃣ RECEIVE MESSAGES
+// ==============================
+app.post("/webhook", async (req, res) => {
   try {
-    const { name, phone, service, appointment, image } = req.body;
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const message = changes?.value?.messages?.[0];
 
-    if (!name || !phone) {
-      return res.status(400).json({ error: "Missing name or phone" });
+    if (!message) {
+      return res.sendStatus(200);
     }
 
-    const messageText =
-      `👋 مرحبًا ${name}!\n` +
-      `🦷 تم حجز موعدك لخدمة ${service}\n` +
-      `📅 ${appointment}`;
+    const from = message.from;
+    const text = message.text?.body?.toLowerCase();
 
-    const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
-    const headers = {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json",
-    };
+    console.log("Incoming message:", text);
 
-    // IMAGE MESSAGE
-    if (image && image.startsWith("http")) {
-      await axios.post(
-        url,
-        {
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "image",
-          image: {
-            link: image,
-            caption: messageText,
-          },
-        },
-        { headers }
-      );
-
-      // Follow-up text
-      await axios.post(
-        url,
-        {
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "text",
-          text: { body: "📞 للحجز أو الاستفسار، تواصل معنا الآن!" },
-        },
-        { headers }
-      );
-
-      return res.json({ success: true, type: "image" });
+    if (text === "hello") {
+      await sendMessage(from, "Hi 👋 How can I help you?");
     }
 
-    // TEXT ONLY
-    await axios.post(
-      url,
-      {
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "text",
-        text: { body: messageText },
-      },
-      { headers }
-    );
-
-    res.json({ success: true, type: "text" });
+    res.sendStatus(200);
   } catch (error) {
-    console.error("🚨 WhatsApp Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to send message" });
+    console.error(error);
+    res.sendStatus(200);
   }
 });
 
-// ---------------------------------------------
-// Register Webhook Routes
-// ---------------------------------------------
-registerWebhookRoutes(app, VERIFY_TOKEN);
+// ==============================
+// 3️⃣ SEND MESSAGE FUNCTION
+// ==============================
+async function sendMessage(to, text) {
+  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+  const TOKEN = process.env.WHATSAPP_TOKEN;
 
-// ---------------------------------------------
-// Start Server
-// ---------------------------------------------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      text: { body: text },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+}
+
+app.listen(3000, () => {
+  console.log("Webhook running on port 3000");
 });
-
-module.exports = app;
