@@ -1,83 +1,142 @@
-import express from "express";
-import axios from "axios";
+// ==============================
+// index.js (FINAL MERGED VERSION)
+// ==============================
+
+const express = require("express");
+const bodyParser = require("body-parser");
+const axios = require("axios");
+const path = require("path");
+const { registerWebhookRoutes } = require("./webhookHandler");
 
 const app = express();
-app.use(express.json());
+app.use(bodyParser.json());
 
-// ✅ ROOT ROUTE (PUT IT HERE)
+// ---------------------------------------------
+// Environment Variables
+// ---------------------------------------------
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+
+// ---------------------------------------------
+// Startup logs
+// ---------------------------------------------
+console.log("🚀 Server starting...");
+console.log("✅ VERIFY_TOKEN loaded:", !!VERIFY_TOKEN);
+console.log("✅ WHATSAPP_TOKEN loaded:", !!WHATSAPP_TOKEN);
+console.log("✅ PHONE_NUMBER_ID:", PHONE_NUMBER_ID || "❌ Missing");
+
+// ---------------------------------------------
+// Root Route
+// ---------------------------------------------
 app.get("/", (req, res) => {
-  res.send("WhatsApp Webhook is running 🚀");
+  res.send("✅ WhatsApp Webhook is running 🚀");
 });
 
-// ==============================
-// 1️⃣ VERIFY WEBHOOK (Meta step)
-// ==============================
-app.get("/webhook", (req, res) => {
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  }
-
-  return res.sendStatus(403);
+// ---------------------------------------------
+// Dashboard
+// ---------------------------------------------
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "dashboard.html"));
 });
 
-// ==============================
-// 2️⃣ RECEIVE MESSAGES
-// ==============================
-app.post("/webhook", async (req, res) => {
+// ---------------------------------------------
+// Fetch bookings (Supabase)
+// ---------------------------------------------
+app.get("/api/bookings", async (req, res) => {
   try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
-
-    if (!message) {
-      return res.sendStatus(200);
-    }
-
-    const from = message.from;
-    const text = message.text?.body?.toLowerCase();
-
-    console.log("Incoming message:", text);
-
-    if (text === "hello") {
-      await sendMessage(from, "Hi 👋 How can I help you?");
-    }
-
-    res.sendStatus(200);
-  } catch (error) {
-    console.error(error);
-    res.sendStatus(200);
+    const { getAllBookingsFromSupabase } = require("./databaseHelper");
+    const data = await getAllBookingsFromSupabase();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Error fetching bookings:", err);
+    res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
 
-// ==============================
-// 3️⃣ SEND MESSAGE FUNCTION
-// ==============================
-async function sendMessage(to, text) {
-  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-  const TOKEN = process.env.WHATSAPP_TOKEN;
+// ---------------------------------------------
+// Send WhatsApp Message (TEXT + IMAGE)
+// ---------------------------------------------
+app.post("/sendWhatsApp", async (req, res) => {
+  try {
+    const { name, phone, service, appointment, image } = req.body;
 
-  await axios.post(
-    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      text: { body: text },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json",
-      },
+    if (!name || !phone) {
+      return res.status(400).json({ error: "Missing name or phone" });
     }
-  );
-}
 
-app.listen(3000, () => {
-  console.log("Webhook running on port 3000");
+    const messageText =
+      `👋 مرحبًا ${name}!\n` +
+      `🦷 تم حجز موعدك لخدمة ${service}\n` +
+      `📅 ${appointment}`;
+
+    const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+    const headers = {
+      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      "Content-Type": "application/json",
+    };
+
+    // IMAGE MESSAGE
+    if (image && image.startsWith("http")) {
+      await axios.post(
+        url,
+        {
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "image",
+          image: {
+            link: image,
+            caption: messageText,
+          },
+        },
+        { headers }
+      );
+
+      // Follow-up text
+      await axios.post(
+        url,
+        {
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "text",
+          text: { body: "📞 للحجز أو الاستفسار، تواصل معنا الآن!" },
+        },
+        { headers }
+      );
+
+      return res.json({ success: true, type: "image" });
+    }
+
+    // TEXT ONLY
+    await axios.post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "text",
+        text: { body: messageText },
+      },
+      { headers }
+    );
+
+    res.json({ success: true, type: "text" });
+  } catch (error) {
+    console.error("🚨 WhatsApp Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to send message" });
+  }
 });
+
+// ---------------------------------------------
+// Register Webhook Routes
+// ---------------------------------------------
+registerWebhookRoutes(app, VERIFY_TOKEN);
+
+// ---------------------------------------------
+// Start Server
+// ---------------------------------------------
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
+
+module.exports = app;
