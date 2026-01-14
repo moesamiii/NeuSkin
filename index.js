@@ -4,13 +4,15 @@ import axios from "axios";
 const app = express();
 app.use(express.json());
 
-// ✅ ROOT ROUTE (PUT IT HERE)
+// ==============================
+// ✅ ROOT ROUTE
+// ==============================
 app.get("/", (req, res) => {
   res.send("WhatsApp Webhook is running 🚀");
 });
 
 // ==============================
-// 1️⃣ VERIFY WEBHOOK (Meta step)
+// 1️⃣ VERIFY WEBHOOK (Meta)
 // ==============================
 app.get("/webhook", (req, res) => {
   const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -27,7 +29,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // ==============================
-// 2️⃣ RECEIVE MESSAGES
+// 2️⃣ RECEIVE WHATSAPP MESSAGES
 // ==============================
 app.post("/webhook", async (req, res) => {
   try {
@@ -42,21 +44,21 @@ app.post("/webhook", async (req, res) => {
     const from = message.from;
     const text = message.text?.body?.toLowerCase();
 
-    console.log("Incoming message:", text);
+    console.log("📩 Incoming WhatsApp message:", text);
 
     if (text === "hello") {
       await sendMessage(from, "Hi 👋 How can I help you?");
     }
 
-    res.sendStatus(200);
+    return res.sendStatus(200);
   } catch (error) {
-    console.error(error);
-    res.sendStatus(200);
+    console.error("❌ WhatsApp error:", error);
+    return res.sendStatus(200);
   }
 });
 
 // ==============================
-// 3️⃣ SEND MESSAGE FUNCTION
+// 3️⃣ SEND WHATSAPP MESSAGE
 // ==============================
 async function sendMessage(to, text) {
   const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
@@ -78,6 +80,66 @@ async function sendMessage(to, text) {
   );
 }
 
-app.listen(3000, () => {
-  console.log("Webhook running on port 3000");
+// ==============================
+// 🍬 WEBHOOK CANDY (WEBSITE / SUPABASE)
+// ==============================
+app.options("/webhook-candy", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  return res.status(200).end();
+});
+
+app.post("/webhook-candy", async (req, res) => {
+  try {
+    console.log("🔥 Candy webhook received");
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+
+    const payload = req.body.record || req.body;
+    const { name, phone, service } = payload;
+
+    if (!name || !phone || !service) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const messageText = `📢 عميل جديد من الموقع:
+👤 الاسم: ${name}
+📞 الهاتف: ${phone}
+💊 الخدمة: ${service}`;
+
+    const response = await fetch(
+      "https://whatsapp-test-rosy.vercel.app/api/sendWhatsApp",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Smile Clinic",
+          phone: "962781685210",
+          service: "Booking",
+          appointment: messageText,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("✅ WhatsApp sent from Candy:", data);
+
+    return res.status(200).json({
+      success: true,
+      whatsappResult: data,
+    });
+  } catch (err) {
+    console.error("❌ Candy webhook error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ==============================
+// 🚀 START SERVER
+// ==============================
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
