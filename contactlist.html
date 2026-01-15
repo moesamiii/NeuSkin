@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>قائمة التواصل - Smile Clinic</title>
-
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
     <link
       rel="stylesheet"
@@ -14,7 +13,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- SheetJS for Excel file parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
     <style>
       @media (min-width: 1024px) {
         .dashboard-grid {
@@ -351,6 +349,10 @@
         color: #2563eb;
       }
 
+      .import-stats .fixed {
+        color: #f59e0b;
+      }
+
       body.dark .import-stats .success {
         color: #4ade80;
       }
@@ -361,6 +363,10 @@
 
       body.dark .import-stats .info {
         color: #60a5fa;
+      }
+
+      body.dark .import-stats .fixed {
+        color: #fbbf24;
       }
 
       /* Toast notification */
@@ -394,7 +400,6 @@
       }
     </style>
   </head>
-
   <body>
     <div class="container">
       <!-- SIDEBAR -->
@@ -407,12 +412,10 @@
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
           <a href="notifications.html" id="notificationLink">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
-
           <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
@@ -421,19 +424,16 @@
             <i class="fa-solid fa-table"></i>
             جدول التواصل
           </a>
-
           <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html" class="active">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
           <!-- ✅ END NEW ITEM -->
-
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             الحملات الاعلانية
@@ -493,6 +493,10 @@
                 <small
                   >يجب أن يحتوي الملف على عمودين: الاسم (name) ورقم الهاتف
                   (phone)</small
+                ><br />
+                <small style="color: #f59e0b"
+                  >✨ يتم تصحيح رمز الدولة تلقائياً إذا كان في نهاية
+                  الرقم</small
                 >
               </div>
               <div class="import-buttons">
@@ -520,10 +524,10 @@
                 accept=".xlsx,.xls,.csv"
                 onchange="handleFileSelect(event)"
               />
-
               <div class="import-stats" id="importStats">
                 <p class="info" id="totalRows">إجمالي الصفوف: 0</p>
                 <p class="success" id="successRows">تم استيرادها بنجاح: 0</p>
+                <p class="fixed" id="fixedRows">تم تصحيح رمز الدولة: 0</p>
                 <p class="error" id="errorRows">فشل الاستيراد: 0</p>
                 <p class="info" id="duplicateRows">مكررة (تم تخطيها): 0</p>
               </div>
@@ -575,6 +579,83 @@
 
       let contacts = [];
       let existingPhones = new Set();
+
+      // ========== ✨ NEW: PHONE NUMBER COUNTRY CODE FIX FUNCTION ========== //
+      /**
+       * Fix phone numbers that have country code at the end instead of the beginning
+       * Example: "5012345966" -> "+966501234"
+       * Example: "7812345962" -> "+962781234"
+       *
+       * Supported country codes:
+       * - 966 (Saudi Arabia)
+       * - 962 (Jordan)
+       * - 971 (UAE)
+       * - 973 (Bahrain)
+       * - 974 (Qatar)
+       * - 968 (Oman)
+       * - 965 (Kuwait)
+       * - 20 (Egypt)
+       * - 961 (Lebanon)
+       * - 963 (Syria)
+       * - 964 (Iraq)
+       * - 212 (Morocco)
+       * - 216 (Tunisia)
+       * - 213 (Algeria)
+       */
+      function fixPhoneCountryCode(phone) {
+        // Remove all non-digit characters first
+        let cleaned = String(phone).replace(/\D/g, "");
+
+        // If already starts with +, return as is
+        if (String(phone).trim().startsWith("+")) {
+          return { phone: String(phone).trim(), fixed: false };
+        }
+
+        // List of country codes to check (ordered by length, longest first)
+        const countryCodes = [
+          "966", // Saudi Arabia
+          "962", // Jordan
+          "971", // UAE
+          "973", // Bahrain
+          "974", // Qatar
+          "968", // Oman
+          "965", // Kuwait
+          "961", // Lebanon
+          "963", // Syria
+          "964", // Iraq
+          "212", // Morocco
+          "216", // Tunisia
+          "213", // Algeria
+          "20", // Egypt (2 digits)
+        ];
+
+        // Check if country code is at the END of the number
+        for (const code of countryCodes) {
+          if (cleaned.endsWith(code)) {
+            // Get the local number part (without country code)
+            const localNumber = cleaned.slice(0, -code.length);
+
+            // Validate: local number should be reasonable length (7-10 digits)
+            if (localNumber.length >= 7 && localNumber.length <= 10) {
+              // Move country code to the beginning with + sign
+              const fixedPhone = "+" + code + localNumber;
+              console.log(`📱 Fixed phone: ${phone} -> ${fixedPhone}`);
+              return { phone: fixedPhone, fixed: true };
+            }
+          }
+        }
+
+        // Check if already starts with country code (correct format)
+        for (const code of countryCodes) {
+          if (cleaned.startsWith(code)) {
+            // Already correct, just add + if missing
+            return { phone: "+" + cleaned, fixed: false };
+          }
+        }
+
+        // No country code found, return original
+        return { phone: cleaned, fixed: false };
+      }
 
       // Show toast notification
       function showToast(message, type = "success") {
@@ -633,7 +714,7 @@
       // ✅ Add new contact
       async function addContact() {
         const name = document.getElementById("contactName").value.trim();
-        const phone = document.getElementById("contactPhone").value.trim();
+        let phone = document.getElementById("contactPhone").value.trim();
         const successMsg = document.getElementById("successMsg");
         const errorMsg = document.getElementById("errorMsg");
 
@@ -646,6 +727,10 @@
           return;
         }
 
+        // ✨ Fix country code if needed
+        const fixResult = fixPhoneCountryCode(phone);
+        phone = fixResult.phone;
+
         const { error } = await supabaseClient
           .from("contact_list")
           .insert([{ name, phone }]);
@@ -655,6 +740,12 @@
           errorMsg.textContent = "❌ حدث خطأ أثناء الإضافة";
           errorMsg.style.display = "block";
         } else {
+          if (fixResult.fixed) {
+            successMsg.textContent =
+              "✅ تم إضافة جهة الاتصال بنجاح (تم تصحيح رمز الدولة)";
+          } else {
+            successMsg.textContent = "✅ تم إضافة جهة الاتصال بنجاح";
+          }
           successMsg.style.display = "block";
           document.getElementById("contactName").value = "";
           document.getElementById("contactPhone").value = "";
@@ -737,9 +828,9 @@
       // Download Excel template
       function downloadTemplate() {
         const templateData = [
-          { name: "اسم العميل 1", phone: "0501234567" },
-          { name: "اسم العميل 2", phone: "0559876543" },
-          { name: "Customer Name 3", phone: "0512345678" },
+          { name: "اسم العميل 1", phone: "+966501234567" },
+          { name: "اسم العميل 2", phone: "+962791234567" },
+          { name: "Customer Name 3", phone: "+971501234567" },
         ];
 
         const worksheet = XLSX.utils.json_to_sheet(templateData);
@@ -798,6 +889,9 @@
             "successRows"
           ).textContent = `تم استيرادها بنجاح: ${result.success}`;
           document.getElementById(
+            "fixedRows"
+          ).textContent = `تم تصحيح رمز الدولة: ${result.fixed}`;
+          document.getElementById(
             "errorRows"
           ).textContent = `فشل الاستيراد: ${result.failed}`;
           document.getElementById(
@@ -806,7 +900,11 @@
           importStats.classList.add("show");
 
           if (result.success > 0) {
-            showToast(`تم استيراد ${result.success} جهة اتصال بنجاح!`);
+            let message = `تم استيراد ${result.success} جهة اتصال بنجاح!`;
+            if (result.fixed > 0) {
+              message += ` (تم تصحيح ${result.fixed} رقم)`;
+            }
+            showToast(message);
             loadContacts();
           } else if (result.duplicates === result.total) {
             showToast("جميع جهات الاتصال موجودة مسبقاً", "warning");
@@ -927,6 +1025,7 @@
           success: 0,
           failed: 0,
           duplicates: 0,
+          fixed: 0, // ✨ NEW: Track fixed phone numbers
         };
 
         // Reload existing phones to get latest data
@@ -935,19 +1034,27 @@
         const newContacts = [];
 
         for (const contact of contactsToImport) {
-          // Check for duplicates
-          if (existingPhones.has(contact.phone)) {
+          // ✨ NEW: Fix country code if it's at the end
+          const fixResult = fixPhoneCountryCode(contact.phone);
+          const fixedPhone = fixResult.phone;
+
+          if (fixResult.fixed) {
+            result.fixed++;
+          }
+
+          // Check for duplicates (using fixed phone)
+          if (existingPhones.has(fixedPhone)) {
             result.duplicates++;
             continue;
           }
 
           newContacts.push({
             name: contact.name,
-            phone: contact.phone,
+            phone: fixedPhone, // Use fixed phone number
           });
 
           // Add to existing set to prevent duplicates within the same import
-          existingPhones.add(contact.phone);
+          existingPhones.add(fixedPhone);
         }
 
         if (newContacts.length === 0) {
@@ -958,7 +1065,6 @@
         const chunkSize = 50;
         for (let i = 0; i < newContacts.length; i += chunkSize) {
           const chunk = newContacts.slice(i, i + chunkSize);
-
           const { error } = await supabaseClient
             .from("contact_list")
             .insert(chunk);
@@ -1021,6 +1127,7 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
+
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
