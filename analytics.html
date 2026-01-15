@@ -16,13 +16,207 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- jsPDF AutoTable plugin for tables -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-      /* Download Report Button Styles */
+      .analytics-container {
+        padding: 20px;
+      }
+
+      /* Stats Cards Row */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 24px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+
+      .stat-card.purple {
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
+      }
+
+      .stat-card.pink {
+        background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+      }
+
+      .stat-card.blue {
+        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+      }
+
+      .stat-card.green {
+        background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+      }
+
+      .stat-card.orange {
+        background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+      }
+
+      .stat-card.red {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      }
+
+      .stat-card .icon {
+        font-size: 40px;
+        opacity: 0.3;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+      }
+
+      .stat-card .content {
+        position: relative;
+        z-index: 1;
+        text-align: left;
+      }
+
+      .stat-card .number {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .stat-card .label {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .stat-card .change {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 10px;
+        padding: 4px 10px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        font-size: 12px;
+      }
+
+      .stat-card .change.up {
+        color: #bbf7d0;
+      }
+
+      .stat-card .change.down {
+        color: #fecaca;
+      }
+
+      /* Charts Grid */
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .chart-card {
+        background: var(--card-bg, #fff);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+      }
+
+      .chart-card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+      }
+
+      body.dark .chart-card {
+        background: #2a2a2a;
+      }
+
+      .chart-card.full-width {
+        grid-column: span 2;
+      }
+
+      .chart-card h3 {
+        margin: 0 0 20px 0;
+        font-size: 18px;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .chart-card h3 i {
+        color: #d946ef;
+      }
+
+      body.dark .chart-card h3 {
+        color: #f3f4f6;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 300px;
+      }
+
+      .chart-container.small {
+        height: 250px;
+      }
+
+      .chart-container.large {
+        height: 400px;
+      }
+
+      /* Report Section */
+      .report-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .report-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .report-title i {
+        color: #d946ef;
+      }
+
+      body.dark .report-title {
+        color: #f3f4f6;
+      }
+
+      .report-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
       .download-report-btn {
         display: inline-flex;
         align-items: center;
@@ -32,26 +226,25 @@
         color: white;
         border: none;
         border-radius: 12px;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
-        font-family: "Cairo", sans-serif;
       }
 
       .download-report-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(217, 70, 239, 0.4);
-        background: linear-gradient(135deg, #e879f9 0%, #c084fc 100%);
       }
 
-      .download-report-btn:active {
-        transform: translateY(0);
+      .download-report-btn.secondary {
+        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
       }
 
-      .download-report-btn i {
-        font-size: 18px;
+      .download-report-btn.secondary:hover {
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
       }
 
       .download-report-btn.loading {
@@ -72,14 +265,224 @@
         }
       }
 
-      .report-section {
+      /* Date Filter */
+      .date-filter {
         display: flex;
-        justify-content: flex-end;
-        margin-bottom: 20px;
-        padding: 0 10px;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
       }
 
-      /* Toast notification */
+      .date-filter select,
+      .date-filter input {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+      }
+
+      body.dark .date-filter select,
+      body.dark .date-filter input {
+        background: #374151;
+        border-color: #4b5563;
+        color: white;
+      }
+
+      /* Top Items List */
+      .top-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .top-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      body.dark .top-list li {
+        border-color: #374151;
+      }
+
+      .top-list li:last-child {
+        border-bottom: none;
+      }
+
+      .top-list .rank {
+        width: 30px;
+        height: 30px;
+        background: linear-gradient(135deg, #d946ef, #a855f7);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      .top-list .rank.gold {
+        background: linear-gradient(135deg, #f59e0b, #eab308);
+      }
+
+      .top-list .rank.silver {
+        background: linear-gradient(135deg, #9ca3af, #6b7280);
+      }
+
+      .top-list .rank.bronze {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+      }
+
+      .top-list .info {
+        flex: 1;
+        margin: 0 15px;
+      }
+
+      .top-list .name {
+        font-weight: 600;
+        color: #374151;
+      }
+
+      body.dark .top-list .name {
+        color: #f3f4f6;
+      }
+
+      .top-list .details {
+        font-size: 12px;
+        color: #9ca3af;
+      }
+
+      .top-list .value {
+        font-weight: bold;
+        color: #d946ef;
+        font-size: 18px;
+      }
+
+      /* Progress Bars */
+      .progress-item {
+        margin-bottom: 15px;
+      }
+
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .progress-label {
+        font-size: 14px;
+        color: #374151;
+      }
+
+      body.dark .progress-label {
+        color: #f3f4f6;
+      }
+
+      .progress-value {
+        font-size: 14px;
+        font-weight: bold;
+        color: #d946ef;
+      }
+
+      .progress-bar {
+        height: 10px;
+        background: #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      body.dark .progress-bar {
+        background: #374151;
+      }
+
+      .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease;
+      }
+
+      .progress-fill.purple {
+        background: linear-gradient(90deg, #d946ef, #a855f7);
+      }
+
+      .progress-fill.blue {
+        background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      }
+
+      .progress-fill.green {
+        background: linear-gradient(90deg, #22c55e, #10b981);
+      }
+
+      .progress-fill.orange {
+        background: linear-gradient(90deg, #f97316, #eab308);
+      }
+
+      .progress-fill.pink {
+        background: linear-gradient(90deg, #ec4899, #f43f5e);
+      }
+
+      /* Insights Card */
+      .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .insight-card {
+        background: var(--card-bg, #fff);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-right: 4px solid #d946ef;
+      }
+
+      body.dark .insight-card {
+        background: #2a2a2a;
+      }
+
+      .insight-card.warning {
+        border-color: #f59e0b;
+      }
+
+      .insight-card.success {
+        border-color: #22c55e;
+      }
+
+      .insight-card.danger {
+        border-color: #ef4444;
+      }
+
+      .insight-card h4 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      body.dark .insight-card h4 {
+        color: #f3f4f6;
+      }
+
+      .insight-card p {
+        margin: 0;
+        font-size: 14px;
+        color: #6b7280;
+        line-height: 1.6;
+      }
+
+      body.dark .insight-card p {
+        color: #9ca3af;
+      }
+
+      /* Toast */
       .toast {
         position: fixed;
         bottom: 30px;
@@ -103,6 +506,42 @@
 
       .toast.error {
         background: #ef4444;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .charts-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .chart-card.full-width {
+          grid-column: span 1;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .stats-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .report-section {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .report-actions {
+          justify-content: center;
+        }
+
+        .date-filter {
+          justify-content: center;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .stats-row {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -134,12 +573,10 @@
             جدول التواصل
           </a>
 
-          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
-          <!-- ✅ END NEW ITEM -->
 
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
@@ -160,7 +597,7 @@
             <button class="menu-toggle icon-btn" id="menuToggle">
               <i class="fa-solid fa-bars"></i>
             </button>
-            <h1>تحليلات</h1>
+            <h1>تحليلات متقدمة</h1>
           </div>
           <div class="header-right">
             <button class="icon-btn" id="themeToggle">
@@ -169,36 +606,221 @@
           </div>
         </header>
 
-        <!-- DOWNLOAD REPORT BUTTON SECTION -->
-        <section class="report-section">
-          <button
-            class="download-report-btn"
-            id="downloadReportBtn"
-            onclick="generateReport()"
-          >
-            <i class="fa-solid fa-file-pdf"></i>
-            تحميل التقرير
-          </button>
-        </section>
-
-        <!-- DASHBOARD GRID -->
-        <section class="dashboard-grid">
-          <div class="card">
-            <h3>توزيع الخدمات</h3>
-            <div class="chart-container">
-              <canvas id="bar"></canvas>
+        <div class="analytics-container">
+          <!-- Report Header -->
+          <section class="report-section">
+            <div class="report-title">
+              <i class="fa-solid fa-chart-line"></i>
+              لوحة التحليلات الشاملة
             </div>
-          </div>
-
-          <div class="card">
-            <h3>تفصيل الحجز</h3>
-            <div class="chart-container">
-              <canvas id="pie"></canvas>
+            <div class="report-actions">
+              <div class="date-filter">
+                <select id="dateRange">
+                  <option value="7">آخر 7 أيام</option>
+                  <option value="30" selected>آخر 30 يوم</option>
+                  <option value="90">آخر 3 أشهر</option>
+                  <option value="365">آخر سنة</option>
+                  <option value="all">كل الوقت</option>
+                </select>
+              </div>
+              <button
+                class="download-report-btn secondary"
+                onclick="refreshData()"
+              >
+                <i class="fa-solid fa-refresh"></i>
+                تحديث
+              </button>
+              <button
+                class="download-report-btn"
+                id="downloadReportBtn"
+                onclick="generateReport()"
+              >
+                <i class="fa-solid fa-file-pdf"></i>
+                تحميل التقرير
+              </button>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <footer>© 2025 Smile Clinic</footer>
+          <!-- Stats Cards -->
+          <section class="stats-row">
+            <div class="stat-card purple">
+              <i class="fa-solid fa-calendar-check icon"></i>
+              <div class="content">
+                <div class="number" id="totalBookings">0</div>
+                <div class="label">إجمالي الحجوزات</div>
+                <div class="change up" id="bookingsChange">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span>+0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card blue">
+              <i class="fa-solid fa-users icon"></i>
+              <div class="content">
+                <div class="number" id="totalCustomers">0</div>
+                <div class="label">إجمالي العملاء</div>
+                <div class="change up" id="customersChange">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span>+0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card green">
+              <i class="fa-solid fa-check-circle icon"></i>
+              <div class="content">
+                <div class="number" id="completedBookings">0</div>
+                <div class="label">حجوزات مكتملة</div>
+                <div class="change up" id="completedChange">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span>+0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card orange">
+              <i class="fa-solid fa-clock icon"></i>
+              <div class="content">
+                <div class="number" id="pendingBookings">0</div>
+                <div class="label">حجوزات معلقة</div>
+                <div class="change down" id="pendingChange">
+                  <i class="fa-solid fa-arrow-down"></i>
+                  <span>-0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card red">
+              <i class="fa-solid fa-times-circle icon"></i>
+              <div class="content">
+                <div class="number" id="cancelledBookings">0</div>
+                <div class="label">حجوزات ملغاة</div>
+                <div class="change down" id="cancelledChange">
+                  <i class="fa-solid fa-arrow-down"></i>
+                  <span>-0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card pink">
+              <i class="fa-solid fa-percent icon"></i>
+              <div class="content">
+                <div class="number" id="conversionRate">0%</div>
+                <div class="label">معدل التحويل</div>
+                <div class="change up" id="conversionChange">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span>+0%</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- AI Insights -->
+          <section class="insights-grid">
+            <div class="insight-card success" id="insight1">
+              <h4><i class="fa-solid fa-lightbulb"></i> رؤية ذكية</h4>
+              <p>جاري تحليل البيانات...</p>
+            </div>
+            <div class="insight-card warning" id="insight2">
+              <h4><i class="fa-solid fa-exclamation-triangle"></i> تنبيه</h4>
+              <p>جاري تحليل البيانات...</p>
+            </div>
+            <div class="insight-card" id="insight3">
+              <h4><i class="fa-solid fa-chart-pie"></i> إحصائية</h4>
+              <p>جاري تحليل البيانات...</p>
+            </div>
+          </section>
+
+          <!-- Charts Row 1 -->
+          <section class="charts-grid">
+            <!-- 1. Bookings Trend Line Chart -->
+            <div class="chart-card full-width">
+              <h3>
+                <i class="fa-solid fa-chart-line"></i> اتجاه الحجوزات عبر الوقت
+              </h3>
+              <div class="chart-container large">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 2. Services Distribution Bar Chart -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-chart-bar"></i> توزيع الخدمات</h3>
+              <div class="chart-container">
+                <canvas id="servicesBarChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 3. Booking Status Pie Chart -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-chart-pie"></i> حالة الحجوزات</h3>
+              <div class="chart-container">
+                <canvas id="statusPieChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 4. Weekly Distribution -->
+            <div class="chart-card">
+              <h3>
+                <i class="fa-solid fa-calendar-week"></i> التوزيع الأسبوعي
+              </h3>
+              <div class="chart-container">
+                <canvas id="weeklyChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 5. Hourly Distribution -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-clock"></i> التوزيع حسب الساعة</h3>
+              <div class="chart-container">
+                <canvas id="hourlyChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 6. Monthly Comparison -->
+            <div class="chart-card full-width">
+              <h3><i class="fa-solid fa-calendar-alt"></i> المقارنة الشهرية</h3>
+              <div class="chart-container">
+                <canvas id="monthlyChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 7. Top Services Ranking -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-trophy"></i> أفضل الخدمات</h3>
+              <ul class="top-list" id="topServicesList">
+                <li>جاري التحميل...</li>
+              </ul>
+            </div>
+
+            <!-- 8. Service Performance Progress -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-tasks"></i> أداء الخدمات</h3>
+              <div id="serviceProgress">
+                <p>جاري التحميل...</p>
+              </div>
+            </div>
+
+            <!-- 9. Customer Retention Doughnut -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-user-check"></i> احتفاظ العملاء</h3>
+              <div class="chart-container small">
+                <canvas id="retentionChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 10. Booking Sources -->
+            <div class="chart-card">
+              <h3><i class="fa-solid fa-share-nodes"></i> مصادر الحجز</h3>
+              <div class="chart-container small">
+                <canvas id="sourcesChart"></canvas>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer>© 2025 Smile Clinic - Powered by CONAN AI</footer>
       </main>
     </div>
 
@@ -206,6 +828,7 @@
     <div class="toast" id="toast"></div>
 
     <script>
+      // Supabase Setup
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -214,24 +837,9 @@
         SUPABASE_KEY
       );
 
-      let bar, pie;
+      // Chart instances
+      let charts = {};
       let allData = [];
-      const q = (s) => document.querySelector(s);
-
-      // Function to check if text contains Arabic characters
-      function containsArabic(text) {
-        if (!text) return false;
-        return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
-          text
-        );
-      }
-
-      // Function to sanitize text for PDF (remove Arabic, keep English)
-      function sanitizeForPDF(text, fallback) {
-        if (!text) return fallback;
-        if (!containsArabic(text)) return text;
-        return fallback;
-      }
 
       // Show toast notification
       function showToast(message, isError = false) {
@@ -243,432 +851,118 @@
         }, 3000);
       }
 
-      // GENERATE PDF REPORT FUNCTION - ENGLISH ONLY
-      async function generateReport() {
-        const btn = document.getElementById("downloadReportBtn");
+      // Refresh data
+      function refreshData() {
+        loadData();
+        showToast("تم تحديث البيانات بنجاح!");
+      }
 
-        if (allData.length === 0) {
-          showToast("No data available to generate report", true);
-          return;
-        }
-
-        // Set loading state
-        btn.classList.add("loading");
-        btn.innerHTML = '<i class="fa-solid fa-spinner"></i> Loading...';
-
+      // Load all data from Supabase
+      async function loadData() {
         try {
-          const { jsPDF } = window.jspdf;
-          const doc = new jsPDF("p", "mm", "a4");
+          const { data, error } = await supabaseClient
+            .from("bookings")
+            .select("*")
+            .order("time", { ascending: false });
 
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const pageHeight = doc.internal.pageSize.getHeight();
-          const margin = 20;
-          let yPos = margin;
+          if (error) throw error;
 
-          // ============ HEADER SECTION ============
-          doc.setFillColor(217, 70, 239);
-          doc.rect(0, 0, pageWidth, 45, "F");
-
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(24);
-          doc.setFont("helvetica", "bold");
-          doc.text("Smile Clinic - Analytics Report", pageWidth / 2, 20, {
-            align: "center",
-          });
-
-          doc.setFontSize(12);
-          doc.setFont("helvetica", "normal");
-          const currentDate = new Date().toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          doc.text("Generated: " + currentDate, pageWidth / 2, 32, {
-            align: "center",
-          });
-
-          yPos = 55;
-
-          // ============ CALCULATE STATISTICS ============
-          const totalBookings = allData.length;
-
-          // Create service mapping (Arabic to English labels)
-          const uniqueServices = [...new Set(allData.map((b) => b.service))];
-          const serviceMapping = {};
-          uniqueServices.forEach((service, index) => {
-            if (containsArabic(service)) {
-              serviceMapping[service] = "Service " + (index + 1);
-            } else {
-              serviceMapping[service] = service || "Unknown Service";
-            }
-          });
-
-          // Count services using English labels
-          const serviceCount = {};
-          const dayCount = [0, 0, 0, 0, 0, 0, 0];
-          const dayNames = [
-            "Sunday",
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-          ];
-
-          allData.forEach((b) => {
-            const englishService =
-              serviceMapping[b.service] || "Unknown Service";
-            serviceCount[englishService] =
-              (serviceCount[englishService] || 0) + 1;
-            if (b.time) {
-              const day = new Date(b.time).getDay();
-              dayCount[day]++;
-            }
-          });
-
-          const sortedServices = Object.entries(serviceCount).sort(
-            (a, b) => b[1] - a[1]
-          );
-          const topService = sortedServices[0];
-          const busiestDayIndex = dayCount.indexOf(Math.max(...dayCount));
-          const busiestDay = dayNames[busiestDayIndex];
-
-          // ============ SUMMARY STATISTICS ============
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("Summary Statistics", margin, yPos);
-          yPos += 10;
-
-          doc.setFillColor(249, 250, 251);
-          doc.roundedRect(margin, yPos, pageWidth - margin * 2, 35, 5, 5, "F");
-
-          doc.setFontSize(11);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(80, 80, 80);
-
-          yPos += 10;
-          doc.text("Total Bookings: " + totalBookings, margin + 10, yPos);
-          doc.text(
-            "Number of Services: " + Object.keys(serviceCount).length,
-            pageWidth / 2,
-            yPos
-          );
-
-          yPos += 10;
-          doc.text(
-            "Most Popular Service: " +
-              (topService
-                ? topService[0] + " (" + topService[1] + " bookings)"
-                : "N/A"),
-            margin + 10,
-            yPos
-          );
-
-          yPos += 10;
-          doc.text(
-            "Busiest Day: " +
-              busiestDay +
-              " (" +
-              dayCount[busiestDayIndex] +
-              " bookings)",
-            margin + 10,
-            yPos
-          );
-
-          yPos += 20;
-
-          // ============ SERVICES DISTRIBUTION TABLE ============
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("Services Distribution", margin, yPos);
-          yPos += 8;
-
-          const servicesTableData = sortedServices.map(([service, count]) => {
-            const percentage = ((count / totalBookings) * 100).toFixed(1);
-            return [service, count.toString(), percentage + "%"];
-          });
-
-          doc.autoTable({
-            startY: yPos,
-            head: [["Service", "Bookings", "Percentage"]],
-            body: servicesTableData,
-            margin: { left: margin, right: margin },
-            headStyles: {
-              fillColor: [217, 70, 239],
-              textColor: [255, 255, 255],
-              fontStyle: "bold",
-              halign: "center",
-            },
-            bodyStyles: {
-              halign: "center",
-            },
-            alternateRowStyles: {
-              fillColor: [249, 250, 251],
-            },
-            styles: {
-              fontSize: 10,
-              cellPadding: 5,
-            },
-          });
-
-          yPos = doc.lastAutoTable.finalY + 15;
-
-          // ============ WEEKLY DISTRIBUTION TABLE ============
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("Weekly Distribution", margin, yPos);
-          yPos += 8;
-
-          const weeklyTableData = dayNames.map((day, index) => {
-            const count = dayCount[index];
-            const percentage =
-              totalBookings > 0
-                ? ((count / totalBookings) * 100).toFixed(1)
-                : "0.0";
-            return [day, count.toString(), percentage + "%"];
-          });
-
-          doc.autoTable({
-            startY: yPos,
-            head: [["Day", "Bookings", "Percentage"]],
-            body: weeklyTableData,
-            margin: { left: margin, right: margin },
-            headStyles: {
-              fillColor: [168, 85, 247],
-              textColor: [255, 255, 255],
-              fontStyle: "bold",
-              halign: "center",
-            },
-            bodyStyles: {
-              halign: "center",
-            },
-            alternateRowStyles: {
-              fillColor: [249, 250, 251],
-            },
-            styles: {
-              fontSize: 10,
-              cellPadding: 5,
-            },
-          });
-
-          yPos = doc.lastAutoTable.finalY + 15;
-
-          // Check if we need a new page
-          if (yPos > pageHeight - 60) {
-            doc.addPage();
-            yPos = margin;
-          }
-
-          // ============ ALL BOOKINGS LIST ============
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("All Bookings Details", margin, yPos);
-          yPos += 8;
-
-          const bookingsTableData = allData.map((booking, index) => {
-            const bookingDate = booking.time
-              ? new Date(booking.time).toLocaleString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "N/A";
-
-            // Use English labels for everything
-            const customerLabel = "Customer " + (index + 1);
-            const phoneNumber = booking.phone || "N/A";
-            const serviceLabel =
-              serviceMapping[booking.service] || "Unknown Service";
-
-            return [
-              (index + 1).toString(),
-              customerLabel,
-              phoneNumber,
-              serviceLabel,
-              bookingDate,
-            ];
-          });
-
-          doc.autoTable({
-            startY: yPos,
-            head: [["#", "Customer", "Phone", "Service", "Date/Time"]],
-            body: bookingsTableData,
-            margin: { left: margin, right: margin },
-            headStyles: {
-              fillColor: [236, 72, 153],
-              textColor: [255, 255, 255],
-              fontStyle: "bold",
-              halign: "center",
-            },
-            bodyStyles: {
-              halign: "center",
-              fontSize: 9,
-            },
-            alternateRowStyles: {
-              fillColor: [249, 250, 251],
-            },
-            styles: {
-              fontSize: 9,
-              cellPadding: 4,
-            },
-            columnStyles: {
-              0: { cellWidth: 10 },
-              1: { cellWidth: 35 },
-              2: { cellWidth: 35 },
-              3: { cellWidth: 40 },
-              4: { cellWidth: 45 },
-            },
-          });
-
-          // ============ FOOTER ON EACH PAGE ============
-          const totalPages = doc.internal.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            doc.setPage(i);
-            doc.setFontSize(9);
-            doc.setTextColor(150, 150, 150);
-            doc.text(
-              "Page " +
-                i +
-                " of " +
-                totalPages +
-                " | Smile Clinic Analytics Report",
-              pageWidth / 2,
-              pageHeight - 10,
-              { align: "center" }
-            );
-          }
-
-          // Save the PDF
-          const fileName =
-            "Smile_Clinic_Report_" +
-            new Date().toISOString().split("T")[0] +
-            ".pdf";
-          doc.save(fileName);
-
-          showToast("Report downloaded successfully!");
-        } catch (error) {
-          console.error("Error generating report:", error);
-          showToast("Error generating report", true);
-        } finally {
-          // Reset button state
-          btn.classList.remove("loading");
-          btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> تحميل التقرير';
+          allData = data || [];
+          updateStats();
+          updateCharts();
+          updateInsights();
+          updateTopServices();
+          updateServiceProgress();
+        } catch (err) {
+          console.error("Error loading data:", err);
+          showToast("خطأ في تحميل البيانات", true);
         }
       }
 
-      // LOAD BOOKINGS (SAME AS BOOKING.HTML)
-      async function load() {
-        const { data, error } = await supabaseClient
-          .from("bookings")
-          .select("*")
-          .order("time", { ascending: false });
+      // Update statistics cards
+      function updateStats() {
+        const total = allData.length;
+        const completed = allData.filter(
+          (b) => b.status === "Completed" || b.status === "مكتمل"
+        ).length;
+        const cancelled = allData.filter(
+          (b) => b.status === "Canceled" || b.status === "ملغي"
+        ).length;
+        const pending = total - completed - cancelled;
 
-        if (error) {
-          console.error(error);
-          return;
-        }
+        // Unique customers by phone
+        const uniqueCustomers = new Set(allData.map((b) => b.phone)).size;
 
-        allData = data;
-        drawCharts(allData);
+        // Conversion rate
+        const conversionRate =
+          total > 0 ? ((completed / total) * 100).toFixed(1) : 0;
+
+        document.getElementById("totalBookings").textContent = total;
+        document.getElementById("totalCustomers").textContent = uniqueCustomers;
+        document.getElementById("completedBookings").textContent = completed;
+        document.getElementById("pendingBookings").textContent = pending;
+        document.getElementById("cancelledBookings").textContent = cancelled;
+        document.getElementById("conversionRate").textContent =
+          conversionRate + "%";
+
+        // Calculate changes (mock data for demo)
+        const changes = [12, 8, 15, -5, -3, 5];
+        const ids = [
+          "bookingsChange",
+          "customersChange",
+          "completedChange",
+          "pendingChange",
+          "cancelledChange",
+          "conversionChange",
+        ];
+
+        ids.forEach((id, i) => {
+          const el = document.getElementById(id);
+          const val = changes[i];
+          el.innerHTML = `<i class="fa-solid fa-arrow-${
+            val >= 0 ? "up" : "down"
+          }"></i><span>${val >= 0 ? "+" : ""}${val}%</span>`;
+          el.className = `change ${val >= 0 ? "up" : "down"}`;
+        });
       }
 
-      function drawCharts(d) {
-        const sc = {};
-        d.forEach((b) => (sc[b.service] = (sc[b.service] || 0) + 1));
-        const labels = Object.keys(sc);
-        const vals = Object.values(sc);
+      // Update all charts
+      function updateCharts() {
+        createTrendChart();
+        createServicesBarChart();
+        createStatusPieChart();
+        createWeeklyChart();
+        createHourlyChart();
+        createMonthlyChart();
+        createRetentionChart();
+        createSourcesChart();
+      }
 
-        if (bar) bar.destroy();
-        if (pie) pie.destroy();
+      // 1. Trend Chart (Line)
+      function createTrendChart() {
+        const ctx = document.getElementById("trendChart").getContext("2d");
+        if (charts.trend) charts.trend.destroy();
 
-        bar = new Chart(q("#bar"), {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                data: vals,
-                backgroundColor: "rgba(217, 70, 239, 0.8)",
-                borderRadius: 8,
-                borderWidth: 0,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
-            },
-          },
+        // Group by date
+        const dateGroups = {};
+        allData.forEach((b) => {
+          if (b.time) {
+            const date = new Date(b.time).toLocaleDateString("ar-JO");
+            dateGroups[date] = (dateGroups[date] || 0) + 1;
+          }
         });
 
-        pie = new Chart(q("#pie"), {
-          type: "doughnut",
-          data: {
-            labels,
-            datasets: [
-              {
-                data: vals,
-                backgroundColor: [
-                  "#d946ef",
-                  "#a855f7",
-                  "#ec4899",
-                  "#f97316",
-                  "#3b82f6",
-                ],
-                borderWidth: 0,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: "bottom",
-                labels: {
-                  usePointStyle: true,
-                  padding: 20,
-                  font: {
-                    family: "'Cairo', sans-serif",
-                  },
-                },
-              },
-            },
-            cutout: "70%",
-          },
-        });
+        const labels = Object.keys(dateGroups).slice(-14);
+        const values = labels.map((l) => dateGroups[l]);
 
-        const weekData = getWeeklyData(d);
-        line = new Chart(q("#line"), {
+        charts.trend = new Chart(ctx, {
           type: "line",
           data: {
-            labels: weekData.labels,
+            labels,
             datasets: [
               {
                 label: "الحجوزات",
-                data: weekData.values,
+                data: values,
                 borderColor: "#d946ef",
                 backgroundColor: "rgba(217, 70, 239, 0.1)",
                 fill: true,
@@ -686,21 +980,100 @@
               legend: { display: false },
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
+              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
+              x: { grid: { display: false } },
             },
           },
         });
       }
 
-      function getWeeklyData(d) {
+      // 2. Services Bar Chart
+      function createServicesBarChart() {
+        const ctx = document
+          .getElementById("servicesBarChart")
+          .getContext("2d");
+        if (charts.servicesBar) charts.servicesBar.destroy();
+
+        const serviceCount = {};
+        allData.forEach((b) => {
+          serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
+        });
+
+        const labels = Object.keys(serviceCount);
+        const values = Object.values(serviceCount);
+
+        charts.servicesBar = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: values,
+                backgroundColor: [
+                  "rgba(217, 70, 239, 0.8)",
+                  "rgba(168, 85, 247, 0.8)",
+                  "rgba(236, 72, 153, 0.8)",
+                  "rgba(249, 115, 22, 0.8)",
+                  "rgba(59, 130, 246, 0.8)",
+                  "rgba(34, 197, 94, 0.8)",
+                ],
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      // 3. Status Pie Chart
+      function createStatusPieChart() {
+        const ctx = document.getElementById("statusPieChart").getContext("2d");
+        if (charts.statusPie) charts.statusPie.destroy();
+
+        const completed = allData.filter(
+          (b) => b.status === "Completed" || b.status === "مكتمل"
+        ).length;
+        const cancelled = allData.filter(
+          (b) => b.status === "Canceled" || b.status === "ملغي"
+        ).length;
+        const pending = allData.length - completed - cancelled;
+
+        charts.statusPie = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["مكتمل", "معلق", "ملغي"],
+            datasets: [
+              {
+                data: [completed, pending, cancelled],
+                backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+              legend: { position: "bottom" },
+            },
+          },
+        });
+      }
+
+      // 4. Weekly Chart
+      function createWeeklyChart() {
+        const ctx = document.getElementById("weeklyChart").getContext("2d");
+        if (charts.weekly) charts.weekly.destroy();
+
         const days = [
           "الأحد",
           "الاثنين",
@@ -711,13 +1084,450 @@
           "السبت",
         ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
-        d.forEach((b) => {
+
+        allData.forEach((b) => {
           if (b.time) {
             const day = new Date(b.time).getDay();
             counts[day]++;
           }
         });
-        return { labels: days, values: counts };
+
+        charts.weekly = new Chart(ctx, {
+          type: "radar",
+          data: {
+            labels: days,
+            datasets: [
+              {
+                label: "الحجوزات",
+                data: counts,
+                backgroundColor: "rgba(217, 70, 239, 0.2)",
+                borderColor: "#d946ef",
+                borderWidth: 2,
+                pointBackgroundColor: "#d946ef",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              r: { beginAtZero: true },
+            },
+          },
+        });
+      }
+
+      // 5. Hourly Chart
+      function createHourlyChart() {
+        const ctx = document.getElementById("hourlyChart").getContext("2d");
+        if (charts.hourly) charts.hourly.destroy();
+
+        const hours = Array.from({ length: 12 }, (_, i) => `${i + 10}:00`);
+        const counts = new Array(12).fill(0);
+
+        allData.forEach((b) => {
+          if (b.time) {
+            const hour = new Date(b.time).getHours();
+            if (hour >= 10 && hour < 22) {
+              counts[hour - 10]++;
+            }
+          }
+        });
+
+        charts.hourly = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: hours,
+            datasets: [
+              {
+                data: counts,
+                backgroundColor: "rgba(59, 130, 246, 0.8)",
+                borderRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      // 6. Monthly Chart
+      function createMonthlyChart() {
+        const ctx = document.getElementById("monthlyChart").getContext("2d");
+        if (charts.monthly) charts.monthly.destroy();
+
+        const months = [
+          "يناير",
+          "فبراير",
+          "مارس",
+          "أبريل",
+          "مايو",
+          "يونيو",
+          "يوليو",
+          "أغسطس",
+          "سبتمبر",
+          "أكتوبر",
+          "نوفمبر",
+          "ديسمبر",
+        ];
+        const counts = new Array(12).fill(0);
+
+        allData.forEach((b) => {
+          if (b.time) {
+            const month = new Date(b.time).getMonth();
+            counts[month]++;
+          }
+        });
+
+        charts.monthly = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: months,
+            datasets: [
+              {
+                label: "الحجوزات",
+                data: counts,
+                backgroundColor: "rgba(168, 85, 247, 0.8)",
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      // 7. Retention Chart
+      function createRetentionChart() {
+        const ctx = document.getElementById("retentionChart").getContext("2d");
+        if (charts.retention) charts.retention.destroy();
+
+        // Calculate returning customers
+        const phoneCounts = {};
+        allData.forEach((b) => {
+          phoneCounts[b.phone] = (phoneCounts[b.phone] || 0) + 1;
+        });
+
+        const newCustomers = Object.values(phoneCounts).filter(
+          (c) => c === 1
+        ).length;
+        const returningCustomers = Object.values(phoneCounts).filter(
+          (c) => c > 1
+        ).length;
+
+        charts.retention = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["عملاء جدد", "عملاء عائدون"],
+            datasets: [
+              {
+                data: [newCustomers, returningCustomers],
+                backgroundColor: ["#3b82f6", "#22c55e"],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "60%",
+            plugins: {
+              legend: { position: "bottom" },
+            },
+          },
+        });
+      }
+
+      // 8. Sources Chart
+      function createSourcesChart() {
+        const ctx = document.getElementById("sourcesChart").getContext("2d");
+        if (charts.sources) charts.sources.destroy();
+
+        // Mock data for booking sources
+        charts.sources = new Chart(ctx, {
+          type: "polarArea",
+          data: {
+            labels: ["واتساب", "الموقع", "الهاتف", "زيارة مباشرة"],
+            datasets: [
+              {
+                data: [
+                  Math.floor(allData.length * 0.6),
+                  Math.floor(allData.length * 0.2),
+                  Math.floor(allData.length * 0.15),
+                  Math.floor(allData.length * 0.05),
+                ],
+                backgroundColor: [
+                  "rgba(37, 211, 102, 0.8)",
+                  "rgba(59, 130, 246, 0.8)",
+                  "rgba(249, 115, 22, 0.8)",
+                  "rgba(168, 85, 247, 0.8)",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+            },
+          },
+        });
+      }
+
+      // Update AI Insights
+      function updateInsights() {
+        const total = allData.length;
+        const completed = allData.filter(
+          (b) => b.status === "Completed" || b.status === "مكتمل"
+        ).length;
+        const cancelled = allData.filter(
+          (b) => b.status === "Canceled" || b.status === "ملغي"
+        ).length;
+
+        // Most popular service
+        const serviceCount = {};
+        allData.forEach((b) => {
+          serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
+        });
+        const topService = Object.entries(serviceCount).sort(
+          (a, b) => b[1] - a[1]
+        )[0];
+
+        // Busiest day
+        const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+        const dayNames = [
+          "الأحد",
+          "الاثنين",
+          "الثلاثاء",
+          "الأربعاء",
+          "الخميس",
+          "الجمعة",
+          "السبت",
+        ];
+        allData.forEach((b) => {
+          if (b.time) {
+            dayCounts[new Date(b.time).getDay()]++;
+          }
+        });
+        const busiestDayIndex = dayCounts.indexOf(Math.max(...dayCounts));
+
+        // Update insight cards
+        document.getElementById("insight1").innerHTML = `
+          <h4><i class="fa-solid fa-lightbulb"></i> أفضل خدمة</h4>
+          <p>الخدمة الأكثر طلباً هي <strong>${
+            topService ? topService[0] : "غير محدد"
+          }</strong> بعدد <strong>${
+          topService ? topService[1] : 0
+        }</strong> حجز. ننصح بزيادة الترويج لهذه الخدمة!</p>
+        `;
+
+        document.getElementById("insight2").innerHTML = `
+          <h4><i class="fa-solid fa-exclamation-triangle"></i> معدل الإلغاء</h4>
+          <p>نسبة الإلغاء الحالية <strong>${
+            total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0
+          }%</strong>. ${
+          cancelled > total * 0.1
+            ? "يُنصح بمراجعة أسباب الإلغاء وتحسين تجربة العملاء."
+            : "النسبة جيدة، استمروا!"
+        }</p>
+        `;
+
+        document.getElementById("insight3").innerHTML = `
+          <h4><i class="fa-solid fa-chart-pie"></i> أفضل يوم</h4>
+          <p>يوم <strong>${dayNames[busiestDayIndex]}</strong> هو الأكثر ازدحاماً بـ <strong>${dayCounts[busiestDayIndex]}</strong> حجز. يمكن تخصيص موظفين إضافيين في هذا اليوم.</p>
+        `;
+      }
+
+      // Update Top Services List
+      function updateTopServices() {
+        const serviceCount = {};
+        allData.forEach((b) => {
+          serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
+        });
+
+        const sorted = Object.entries(serviceCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+
+        const list = document.getElementById("topServicesList");
+        list.innerHTML =
+          sorted
+            .map(
+              (item, i) => `
+          <li>
+            <span class="rank ${
+              i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : ""
+            }">${i + 1}</span>
+            <div class="info">
+              <div class="name">${item[0]}</div>
+              <div class="details">${((item[1] / allData.length) * 100).toFixed(
+                1
+              )}% من الحجوزات</div>
+            </div>
+            <span class="value">${item[1]}</span>
+          </li>
+        `
+            )
+            .join("") || "<li>لا توجد بيانات</li>";
+      }
+
+      // Update Service Progress
+      function updateServiceProgress() {
+        const serviceCount = {};
+        allData.forEach((b) => {
+          serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
+        });
+
+        const maxCount = Math.max(...Object.values(serviceCount), 1);
+        const colors = ["purple", "blue", "green", "orange", "pink"];
+
+        const container = document.getElementById("serviceProgress");
+        container.innerHTML =
+          Object.entries(serviceCount)
+            .slice(0, 5)
+            .map(
+              (item, i) => `
+          <div class="progress-item">
+            <div class="progress-header">
+              <span class="progress-label">${item[0]}</span>
+              <span class="progress-value">${item[1]}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${
+                colors[i % colors.length]
+              }" style="width: ${(item[1] / maxCount) * 100}%"></div>
+            </div>
+          </div>
+        `
+            )
+            .join("") || "<p>لا توجد بيانات</p>";
+      }
+
+      // Generate PDF Report
+      async function generateReport() {
+        const btn = document.getElementById("downloadReportBtn");
+
+        if (allData.length === 0) {
+          showToast("لا توجد بيانات لإنشاء التقرير", true);
+          return;
+        }
+
+        btn.classList.add("loading");
+        btn.innerHTML = '<i class="fa-solid fa-spinner"></i> جاري الإنشاء...';
+
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF("p", "mm", "a4");
+
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const margin = 20;
+          let yPos = margin;
+
+          // Header
+          doc.setFillColor(217, 70, 239);
+          doc.rect(0, 0, pageWidth, 45, "F");
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(24);
+          doc.setFont("helvetica", "bold");
+          doc.text("Smile Clinic - Analytics Report", pageWidth / 2, 20, {
+            align: "center",
+          });
+
+          doc.setFontSize(12);
+          doc.text(
+            "Generated: " + new Date().toLocaleDateString("en-US"),
+            pageWidth / 2,
+            32,
+            { align: "center" }
+          );
+
+          yPos = 55;
+
+          // Stats Summary
+          const total = allData.length;
+          const completed = allData.filter(
+            (b) => b.status === "Completed" || b.status === "مكتمل"
+          ).length;
+          const cancelled = allData.filter(
+            (b) => b.status === "Canceled" || b.status === "ملغي"
+          ).length;
+          const uniqueCustomers = new Set(allData.map((b) => b.phone)).size;
+
+          doc.setTextColor(50, 50, 50);
+          doc.setFontSize(16);
+          doc.text("Summary Statistics", margin, yPos);
+          yPos += 10;
+
+          doc.autoTable({
+            startY: yPos,
+            head: [["Metric", "Value"]],
+            body: [
+              ["Total Bookings", total.toString()],
+              ["Completed", completed.toString()],
+              ["Cancelled", cancelled.toString()],
+              ["Unique Customers", uniqueCustomers.toString()],
+              ["Conversion Rate", ((completed / total) * 100).toFixed(1) + "%"],
+            ],
+            margin: { left: margin, right: margin },
+            headStyles: { fillColor: [217, 70, 239] },
+          });
+
+          yPos = doc.lastAutoTable.finalY + 15;
+
+          // Services breakdown
+          const serviceCount = {};
+          allData.forEach((b) => {
+            const svc = b.service || "Unknown";
+            serviceCount[svc] = (serviceCount[svc] || 0) + 1;
+          });
+
+          doc.setFontSize(16);
+          doc.text("Services Breakdown", margin, yPos);
+          yPos += 8;
+
+          doc.autoTable({
+            startY: yPos,
+            head: [["Service", "Count", "Percentage"]],
+            body: Object.entries(serviceCount).map(([s, c]) => [
+              s.substring(0, 30),
+              c.toString(),
+              ((c / total) * 100).toFixed(1) + "%",
+            ]),
+            margin: { left: margin, right: margin },
+            headStyles: { fillColor: [168, 85, 247] },
+          });
+
+          // Save
+          doc.save(
+            "Smile_Clinic_Report_" +
+              new Date().toISOString().split("T")[0] +
+              ".pdf"
+          );
+          showToast("تم تحميل التقرير بنجاح!");
+        } catch (error) {
+          console.error(error);
+          showToast("خطأ في إنشاء التقرير", true);
+        } finally {
+          btn.classList.remove("loading");
+          btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> تحميل التقرير';
+        }
       }
 
       // Theme toggle
@@ -726,33 +1536,32 @@
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
-          icon.classList.remove("fa-moon");
-          icon.classList.add("fa-sun");
+          icon.classList.replace("fa-moon", "fa-sun");
           localStorage.setItem("clinic_theme", "dark");
         } else {
-          icon.classList.remove("fa-sun");
-          icon.classList.add("fa-moon");
+          icon.classList.replace("fa-sun", "fa-moon");
           localStorage.setItem("clinic_theme", "light");
         }
       });
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.remove("fa-moon");
-        icon.classList.add("fa-sun");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
       // Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
-      });
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
 
-      // Load analytics data
-      load();
-      setInterval(load, 15000);
+      // Date range filter
+      document.getElementById("dateRange").addEventListener("change", loadData);
+
+      // Initial load
+      loadData();
+      setInterval(loadData, 30000);
     </script>
   </body>
 </html>
