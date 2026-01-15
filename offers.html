@@ -18,7 +18,7 @@
         display: flex;
         flex-direction: column;
         gap: 25px;
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
       }
 
@@ -227,7 +227,7 @@
 
       .add-phone-form input {
         flex: 1;
-        min-width: 200px;
+        min-width: 180px;
       }
 
       .add-phone-btn {
@@ -245,6 +245,60 @@
         background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
       }
 
+      /* ========== LOAD FROM BOOKINGS SECTION ========== */
+      .load-section {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 2px solid #3b82f6;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+      }
+
+      body.dark .load-section {
+        background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+        border-color: #60a5fa;
+      }
+
+      .load-section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1e40af;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      body.dark .load-section-title {
+        color: #93c5fd;
+      }
+
+      .filter-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .filter-row label {
+        font-size: 13px;
+        font-weight: 500;
+        min-width: 80px;
+      }
+
+      .filter-row select {
+        flex: 1;
+        min-width: 200px;
+        max-width: 300px;
+      }
+
+      .load-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
       .load-contacts-btn {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         padding: 10px 20px;
@@ -259,6 +313,70 @@
       .load-contacts-btn:hover {
         background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
       }
+
+      .load-all-btn {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        padding: 10px 20px;
+        font-size: 14px;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+      }
+
+      .load-all-btn:hover {
+        background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+      }
+
+      .service-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(59, 130, 246, 0.3);
+      }
+
+      .service-stat-badge {
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      body.dark .service-stat-badge {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f3f4f6;
+      }
+
+      .service-stat-badge:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+
+      body.dark .service-stat-badge:hover {
+        background: #1e40af;
+        border-color: #60a5fa;
+      }
+
+      .service-stat-badge .count {
+        background: #3b82f6;
+        color: white;
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* ========== END LOAD SECTION ========== */
 
       .phone-list {
         display: flex;
@@ -300,6 +418,8 @@
 
       .phone-tag .phone-number {
         font-weight: 500;
+        direction: ltr;
+        unicode-bidi: embed;
       }
 
       .phone-tag .phone-name {
@@ -309,6 +429,19 @@
 
       body.dark .phone-tag .phone-name {
         color: #9ca3af;
+      }
+
+      .phone-tag .phone-service {
+        color: #3b82f6;
+        font-size: 10px;
+        background: #eff6ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      body.dark .phone-tag .phone-service {
+        color: #93c5fd;
+        background: #1e3a5f;
       }
 
       .phone-tag .remove-phone {
@@ -354,34 +487,25 @@
         color: #9ca3af;
       }
 
-      .select-all-section {
+      .action-buttons-row {
         display: flex;
         align-items: center;
         gap: 10px;
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px solid rgba(0, 0, 0, 0.1);
+        flex-wrap: wrap;
       }
 
-      body.dark .select-all-section {
+      body.dark .action-buttons-row {
         border-top-color: rgba(255, 255, 255, 0.1);
-      }
-
-      .select-all-section label {
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
       }
 
       .clear-all-btn {
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 8px 16px;
+        font-size: 13px;
         margin: 0;
-        margin-right: auto;
       }
 
       .clear-all-btn:hover {
@@ -460,12 +584,10 @@
             جدول التواصل
           </a>
 
-          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
-          <!-- ✅ END NEW ITEM -->
 
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
@@ -533,6 +655,7 @@
                 المستلمون (أرقام الهواتف)
               </div>
 
+              <!-- Manual Add Phone -->
               <div class="add-phone-form">
                 <input
                   type="text"
@@ -550,12 +673,74 @@
                   <i class="fa-solid fa-plus"></i>
                   إضافة
                 </button>
-                <button class="load-contacts-btn" onclick="loadFromContacts()">
-                  <i class="fa-solid fa-address-book"></i>
-                  تحميل من جهات الاتصال
-                </button>
               </div>
 
+              <!-- ✅ NEW: Load from Bookings Section -->
+              <div class="load-section">
+                <div class="load-section-title">
+                  <i class="fa-solid fa-database"></i>
+                  تحميل من الحجوزات وجهات الاتصال
+                </div>
+
+                <!-- Service Filter -->
+                <div class="filter-row">
+                  <label>فلترة حسب الخدمة:</label>
+                  <select id="serviceFilter">
+                    <option value="all">جميع الخدمات</option>
+                    <!-- Options will be populated dynamically -->
+                  </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="filter-row">
+                  <label>فلترة حسب الحالة:</label>
+                  <select id="statusFilter">
+                    <option value="all">جميع الحالات</option>
+                    <option value="new">جديد</option>
+                    <option value="Contacted">تم التواصل</option>
+                    <option value="Booking Complete">تم الحجز</option>
+                    <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
+                    <option value="Canceled">ملغى</option>
+                  </select>
+                </div>
+
+                <!-- Load Buttons -->
+                <div class="load-buttons">
+                  <button
+                    class="load-contacts-btn"
+                    onclick="loadFilteredBookings()"
+                  >
+                    <i class="fa-solid fa-filter"></i>
+                    تحميل حسب الفلتر
+                  </button>
+                  <button class="load-all-btn" onclick="loadAllContacts()">
+                    <i class="fa-solid fa-users"></i>
+                    تحميل الكل
+                  </button>
+                  <button
+                    class="load-contacts-btn"
+                    onclick="loadFromContactList()"
+                    style="
+                      background: linear-gradient(
+                        135deg,
+                        #f59e0b 0%,
+                        #d97706 100%
+                      );
+                    "
+                  >
+                    <i class="fa-solid fa-address-book"></i>
+                    من قائمة التواصل
+                  </button>
+                </div>
+
+                <!-- Service Stats -->
+                <div class="service-stats" id="serviceStats">
+                  <!-- Will be populated dynamically -->
+                </div>
+              </div>
+              <!-- ✅ END Load Section -->
+
+              <!-- Phone List -->
               <div class="phone-list" id="phoneList">
                 <div class="no-phones-msg">
                   <i class="fa-solid fa-phone-slash"></i>
@@ -567,15 +752,8 @@
                 عدد المستلمين: <strong>0</strong>
               </div>
 
-              <div class="select-all-section">
-                <label>
-                  <input
-                    type="checkbox"
-                    id="selectAllContacts"
-                    onchange="toggleSelectAll()"
-                  />
-                  تحديد الكل من جهات الاتصال
-                </label>
+              <!-- Action Buttons -->
+              <div class="action-buttons-row">
                 <button class="clear-all-btn" onclick="clearAllPhones()">
                   <i class="fa-solid fa-trash"></i>
                   مسح الكل
@@ -605,7 +783,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // 🔑 FIXED: Supabase configuration using supabaseClient
+      // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -616,6 +794,7 @@
 
       let selectedFiles = [];
       let recipientPhones = []; // Array to store phone numbers with names
+      let allBookings = []; // Store all bookings for filtering
 
       // Show toast notification
       function showToast(message, type = "success") {
@@ -649,6 +828,79 @@
         progressInfo.textContent = message;
       }
 
+      // ========== LOAD BOOKINGS AND POPULATE FILTERS ==========
+
+      async function loadBookingsData() {
+        try {
+          const { data, error } = await supabaseClient
+            .from("bookings")
+            .select("*")
+            .order("time", { ascending: false });
+
+          if (error) throw error;
+
+          allBookings = data || [];
+          populateServiceFilter();
+          updateServiceStats();
+
+          addDebugLog(`تم تحميل ${allBookings.length} حجز من قاعدة البيانات`);
+        } catch (err) {
+          console.error("Error loading bookings:", err);
+          addDebugLog(`خطأ في تحميل الحجوزات: ${err.message}`, "error");
+        }
+      }
+
+      // Populate service filter dropdown
+      function populateServiceFilter() {
+        const serviceFilter = document.getElementById("serviceFilter");
+        const services = [
+          ...new Set(allBookings.map((b) => b.service).filter(Boolean)),
+        ];
+
+        // Keep the "all" option and add services
+        serviceFilter.innerHTML = '<option value="all">جميع الخدمات</option>';
+
+        services.forEach((service) => {
+          const option = document.createElement("option");
+          option.value = service;
+          option.textContent = service;
+          serviceFilter.appendChild(option);
+        });
+      }
+
+      // Update service stats badges
+      function updateServiceStats() {
+        const statsContainer = document.getElementById("serviceStats");
+        const serviceCounts = {};
+
+        allBookings.forEach((b) => {
+          if (b.service) {
+            serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+          }
+        });
+
+        const sortedServices = Object.entries(serviceCounts).sort(
+          (a, b) => b[1] - a[1]
+        );
+
+        statsContainer.innerHTML = sortedServices
+          .map(
+            ([service, count]) => `
+          <div class="service-stat-badge" onclick="quickFilterService('${service}')">
+            ${service}
+            <span class="count">${count}</span>
+          </div>
+        `
+          )
+          .join("");
+      }
+
+      // Quick filter by clicking on service badge
+      function quickFilterService(service) {
+        document.getElementById("serviceFilter").value = service;
+        loadFilteredBookings();
+      }
+
       // ========== PHONE NUMBER MANAGEMENT ==========
 
       // Add phone number to list
@@ -664,7 +916,7 @@
           return;
         }
 
-        // Clean phone number (remove spaces, dashes, etc.)
+        // Clean phone number
         phone = phone.replace(/[\s\-\(\)]/g, "");
 
         // Check if already exists
@@ -674,7 +926,7 @@
         }
 
         // Add to list
-        recipientPhones.push({ phone, name });
+        recipientPhones.push({ phone, name, service: "يدوي" });
 
         // Clear inputs
         phoneInput.value = "";
@@ -683,7 +935,7 @@
         // Update UI
         renderPhoneList();
         showToast("تم إضافة الرقم بنجاح");
-        addDebugLog(`تم إضافة رقم: ${phone} (${name})`);
+        addDebugLog(`تم إضافة رقم يدوياً: ${phone} (${name})`);
       }
 
       // Remove phone number from list
@@ -700,7 +952,6 @@
         if (confirm("هل أنت متأكد من مسح جميع الأرقام؟")) {
           recipientPhones = [];
           renderPhoneList();
-          document.getElementById("selectAllContacts").checked = false;
           showToast("تم مسح جميع الأرقام");
           addDebugLog("تم مسح جميع الأرقام");
         }
@@ -725,6 +976,11 @@
             <div class="phone-tag">
               <span class="phone-number">${p.phone}</span>
               <span class="phone-name">${p.name}</span>
+              ${
+                p.service && p.service !== "يدوي"
+                  ? `<span class="phone-service">${p.service}</span>`
+                  : ""
+              }
               <button class="remove-phone" onclick="removePhone(${index})">×</button>
             </div>
           `
@@ -735,39 +991,39 @@
         phoneCount.innerHTML = `عدد المستلمين: <strong>${recipientPhones.length}</strong>`;
       }
 
-      // Load contacts from database
-      async function loadFromContacts() {
+      // ========== LOAD CONTACTS FUNCTIONS ==========
+
+      // Load filtered bookings
+      async function loadFilteredBookings() {
+        const serviceFilter = document.getElementById("serviceFilter").value;
+        const statusFilter = document.getElementById("statusFilter").value;
+
+        updateProgress("جاري تحميل الحجوزات...");
+
         try {
-          updateProgress("جاري تحميل جهات الاتصال...");
+          let filtered = [...allBookings];
 
-          // Load from bookings
-          const { data: bookingData, error: bookingError } =
-            await supabaseClient.from("bookings").select("name, phone");
-
-          // Load from contact_list
-          const { data: contactData, error: contactError } =
-            await supabaseClient.from("contact_list").select("name, phone");
-
-          if (bookingError || contactError) {
-            console.error(
-              "Error loading contacts:",
-              bookingError || contactError
-            );
-            showToast("خطأ في تحميل جهات الاتصال", "error");
-            return;
+          // Apply service filter
+          if (serviceFilter !== "all") {
+            filtered = filtered.filter((b) => b.service === serviceFilter);
           }
 
-          // Combine and remove duplicates
-          const combined = [...(bookingData || []), ...(contactData || [])];
-          const seen = new Set(recipientPhones.map((p) => p.phone));
+          // Apply status filter
+          if (statusFilter !== "all") {
+            filtered = filtered.filter((b) => b.status === statusFilter);
+          }
+
+          // Add to recipients (avoid duplicates)
+          const existingPhones = new Set(recipientPhones.map((p) => p.phone));
           let addedCount = 0;
 
-          combined.forEach((c) => {
-            if (c.phone && !seen.has(c.phone)) {
-              seen.add(c.phone);
+          filtered.forEach((b) => {
+            if (b.phone && !existingPhones.has(b.phone)) {
+              existingPhones.add(b.phone);
               recipientPhones.push({
-                phone: c.phone,
-                name: c.name || "مستلم",
+                phone: b.phone,
+                name: b.name || "مستلم",
+                service: b.service || "",
               });
               addedCount++;
             }
@@ -778,7 +1034,7 @@
           if (addedCount > 0) {
             showToast(`تم إضافة ${addedCount} جهة اتصال`);
             addDebugLog(
-              `تم تحميل ${addedCount} جهة اتصال من قاعدة البيانات`,
+              `تم تحميل ${addedCount} جهة اتصال (خدمة: ${serviceFilter}, حالة: ${statusFilter})`,
               "success"
             );
           } else {
@@ -792,17 +1048,117 @@
         }
       }
 
-      // Toggle select all contacts
-      async function toggleSelectAll() {
-        const checkbox = document.getElementById("selectAllContacts");
+      // Load all contacts (bookings + contact list)
+      async function loadAllContacts() {
+        updateProgress("جاري تحميل جميع جهات الاتصال...");
 
-        if (checkbox.checked) {
-          await loadFromContacts();
-        } else {
-          // Only remove contacts that came from database, keep manually added ones
-          // For simplicity, we'll just clear all
-          recipientPhones = [];
+        try {
+          // Load from bookings
+          const { data: bookingData, error: bookingError } =
+            await supabaseClient
+              .from("bookings")
+              .select("name, phone, service");
+
+          // Load from contact_list
+          const { data: contactData, error: contactError } =
+            await supabaseClient.from("contact_list").select("name, phone");
+
+          if (bookingError || contactError) {
+            throw bookingError || contactError;
+          }
+
+          // Combine and remove duplicates
+          const existingPhones = new Set(recipientPhones.map((p) => p.phone));
+          let addedCount = 0;
+
+          // Add from bookings
+          (bookingData || []).forEach((b) => {
+            if (b.phone && !existingPhones.has(b.phone)) {
+              existingPhones.add(b.phone);
+              recipientPhones.push({
+                phone: b.phone,
+                name: b.name || "مستلم",
+                service: b.service || "",
+              });
+              addedCount++;
+            }
+          });
+
+          // Add from contact list
+          (contactData || []).forEach((c) => {
+            if (c.phone && !existingPhones.has(c.phone)) {
+              existingPhones.add(c.phone);
+              recipientPhones.push({
+                phone: c.phone,
+                name: c.name || "مستلم",
+                service: "قائمة التواصل",
+              });
+              addedCount++;
+            }
+          });
+
           renderPhoneList();
+
+          if (addedCount > 0) {
+            showToast(`تم إضافة ${addedCount} جهة اتصال`);
+            addDebugLog(
+              `تم تحميل ${addedCount} جهة اتصال من جميع المصادر`,
+              "success"
+            );
+          } else {
+            showToast("جميع جهات الاتصال موجودة مسبقاً", "warning");
+          }
+        } catch (err) {
+          console.error("Error:", err);
+          showToast("خطأ في تحميل جهات الاتصال", "error");
+          addDebugLog(`خطأ: ${err.message}`, "error");
+        } finally {
+          document.getElementById("progressInfo").style.display = "none";
+        }
+      }
+
+      // Load only from contact list
+      async function loadFromContactList() {
+        updateProgress("جاري تحميل قائمة التواصل...");
+
+        try {
+          const { data, error } = await supabaseClient
+            .from("contact_list")
+            .select("name, phone");
+
+          if (error) throw error;
+
+          const existingPhones = new Set(recipientPhones.map((p) => p.phone));
+          let addedCount = 0;
+
+          (data || []).forEach((c) => {
+            if (c.phone && !existingPhones.has(c.phone)) {
+              existingPhones.add(c.phone);
+              recipientPhones.push({
+                phone: c.phone,
+                name: c.name || "مستلم",
+                service: "قائمة التواصل",
+              });
+              addedCount++;
+            }
+          });
+
+          renderPhoneList();
+
+          if (addedCount > 0) {
+            showToast(`تم إضافة ${addedCount} جهة اتصال`);
+            addDebugLog(
+              `تم تحميل ${addedCount} جهة اتصال من قائمة التواصل`,
+              "success"
+            );
+          } else {
+            showToast("لا توجد جهات اتصال جديدة للإضافة", "warning");
+          }
+        } catch (err) {
+          console.error("Error:", err);
+          showToast("خطأ في تحميل قائمة التواصل", "error");
+        } finally {
+          document.getElementById("progressInfo").style.display = "none";
         }
       }
 
@@ -822,6 +1178,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          loadBookingsData(); // Load bookings after login
         } else {
           document.getElementById("errorMsg").style.display = "block";
         }
@@ -836,6 +1193,7 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
+        loadBookingsData(); // Load bookings on page load
       }
 
       // 🌙 Theme toggle
@@ -946,7 +1304,7 @@
           addDebugLog(`إرسال رسالة إلى ${phone}...`);
 
           const res = await fetch(
-            "https://whatsapp-cloud-webhook-woad.vercel.app//sendWhatsApp",
+            "https://whatsapp-cloud-webhook-woad.vercel.app/sendWhatsApp",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1004,7 +1362,7 @@
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        const messageText = `${desc}\n⏰ صالح حتى: ${date}`;
+        const messageText = `📢 ${title}\n\n${desc}\n\n⏰ صالح حتى: ${date}`;
 
         try {
           let totalSuccess = 0;
@@ -1108,7 +1466,6 @@
         imagesPreviewContainer.innerHTML = "";
         recipientPhones = [];
         renderPhoneList();
-        document.getElementById("selectAllContacts").checked = false;
       }
 
       // 📱 Menu toggle for mobile
