@@ -17,9 +17,7 @@ function detectLanguage(text) {
 
 async function askAI(userMessage) {
   try {
-    console.log("🤖 DEBUG => Sending message to AI:", userMessage);
     const lang = detectLanguage(userMessage);
-    console.log("🌐 Detected language:", lang);
 
     const arabicPrompt = `أنت موظف خدمة عملاء ذكي وودود في "عيادة ابتسامة الطبيّة".
 📍 الموقع: عمّان – عبدون، خلف بنك الإسكان، الطابق الأول.
@@ -28,77 +26,176 @@ async function askAI(userMessage) {
 تتحدث العربية الفصحى فقط، ومهمتك هي مساعدة العملاء في:
 - الحجز أو تعديل الموعد.
 - الاستفسار عن العروض.
-- شرح الخدمات العلاجية الشائعة والمعروفة في طب الأسنان فقط.
-- الإجابة عن الأسئلة العامة حول العيادة (الموقع، الأطباء، الدوام).
+- شرح الخدمات العلاجية.
+- الإجابة عن الأسئلة العامة حول العيادة.
 
-قواعد:
-1. لا تخرج عن مواضيع العيادة أو خدمات طب الأسنان المعروفة.
-2. كن مهذبًا وبأسلوب موظف استقبال حقيقي.
-3. الأسعار تختلف حسب الحالة، ويحدّدها الطبيب بعد الفحص.
+الخدمات المتاحة: تنظيف الأسنان، تبييض الأسنان، حشوات الأسنان، علاج العصب، تقويم الأسنان، خلع الأسنان، ابتسامة هوليوود، زراعة الأسنان، تركيبات الأسنان، علاج التهاب اللثة.
 
-الخدمات المتاحة:
-- تنظيف الأسنان
-- تبييض الأسنان
-- حشوات الأسنان
-- علاج العصب (سحب العصب)
-- تقويم الأسنان
-- خلع الأسنان
-- ابتسامة هوليوود (فينير/لومينير)
-- زراعة الأسنان
-- تركيبات الأسنان (جسور/تيجان)
-- علاج التهاب اللثة`;
+الأسعار تختلف حسب الحالة ويحدّدها الطبيب بعد الفحص.`;
 
-    const englishPrompt = `You are a smart and friendly customer service assistant at "Smile Medical Clinic".
+    const englishPrompt = `You are a friendly customer service assistant at "Smile Medical Clinic".
 📍 Location: Amman – Abdoun, behind Housing Bank, First Floor.
 🕒 Working hours: Daily from 2:00 PM to 10:00 PM (Closed on Fridays).
 
-You only speak English. Your job is to help clients with:
-- Booking or rescheduling appointments.
-- Providing information about offers.
-- Explaining services or treatments.
-- Answering general questions about the clinic.
+Available services: Cleaning, Whitening, Fillings, Root canal, Braces, Extraction, Hollywood smile, Implants, Crowns/bridges, Gum treatment.
 
-Rules:
-1. Stay strictly within clinic-related topics.
-2. Be polite and warm.
-3. Prices vary depending on the case. The doctor will confirm the cost after the consultation.
-
-Available services:
-- Cleaning
-- Whitening
-- Fillings
-- Root canal treatment
-- Braces / orthodontics
-- Tooth extraction
-- Hollywood smile (veneers/lumineers)
-- Dental implants
-- Crowns / bridges
-- Treatment of gum inflammation`;
-
-    const systemPrompt = lang === "ar" ? arabicPrompt : englishPrompt;
+Prices vary depending on the case. The doctor will confirm after consultation.`;
 
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: systemPrompt },
+        {
+          role: "system",
+          content: lang === "ar" ? arabicPrompt : englishPrompt,
+        },
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,
       max_completion_tokens: 512,
     });
 
-    const reply =
-      completion.choices[0]?.message?.content ||
-      (lang === "ar"
-        ? "عذرًا، لم أفهم سؤالك تمامًا."
-        : "Sorry, I didn't quite understand that.");
-
-    console.log("🤖 DEBUG => AI Reply:", reply);
-    return reply;
+    return completion.choices[0]?.message?.content || "عذرًا، لم أفهم سؤالك.";
   } catch (err) {
-    console.error("❌ DEBUG => AI Error:", err.response?.data || err.message);
+    console.error("❌ AI Error:", err.message);
     return "⚠️ حدث خطأ في نظام المساعد الذكي.";
   }
+}
+
+async function validateNameWithAI(name) {
+  try {
+    const prompt = `هل "${name}" يبدو اسم شخص حقيقي؟ أجب بـ "نعم" أو "لا" فقط.`;
+    const completion = await client.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+      max_completion_tokens: 10,
+    });
+    const reply =
+      completion.choices?.[0]?.message?.content?.toLowerCase() || "";
+    return reply.includes("نعم") || reply.includes("yes");
+  } catch {
+    return true;
+  }
+}
+
+// ==============================
+// 💬 WHATSAPP FUNCTIONS
+// ==============================
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
+async function sendTextMessage(to, text) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      { messaging_product: "whatsapp", to, text: { body: text } },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("❌ Send error:", err.message);
+  }
+}
+
+async function sendAppointmentOptions(to) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: "📅 اختر الموعد المناسب لك:" },
+          action: {
+            buttons: [
+              { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
+              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
+            ],
+          },
+        },
+      },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+    );
+  } catch (err) {
+    console.error("❌ Button error:", err.message);
+  }
+}
+
+async function sendServiceList(to) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
+          body: { text: "اختر نوع الخدمة من القائمة:" },
+          action: {
+            button: "عرض الخدمات",
+            sections: [
+              {
+                title: "الخدمات الأساسية",
+                rows: [
+                  { id: "service_فحص عام", title: "فحص عام" },
+                  { id: "service_تنظيف الأسنان", title: "تنظيف الأسنان" },
+                  { id: "service_تبييض الأسنان", title: "تبييض الأسنان" },
+                  { id: "service_حشو الأسنان", title: "حشو الأسنان" },
+                ],
+              },
+              {
+                title: "الخدمات المتقدمة",
+                rows: [
+                  { id: "service_علاج الجذور", title: "علاج الجذور" },
+                  { id: "service_تركيب التركيبات", title: "التركيبات" },
+                  { id: "service_تقويم الأسنان", title: "تقويم الأسنان" },
+                  { id: "service_خلع الأسنان", title: "خلع الأسنان" },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+    );
+  } catch (err) {
+    console.error("❌ Service list error:", err.message);
+  }
+}
+
+// ==============================
+// 🧠 BOOKING STATE & DETECTION
+// ==============================
+const tempBookings = {};
+
+function isBookingRequest(text) {
+  const t = (text || "").toLowerCase();
+  const keywords = [
+    "حجز",
+    "احجز",
+    "موعد",
+    "book",
+    "appointment",
+    "reserve",
+    "اريد احجز",
+    "ابي احجز",
+  ];
+  return keywords.some((k) => t.includes(k));
+}
+
+function isCancelRequest(text) {
+  const t = (text || "").toLowerCase();
+  const keywords = ["الغاء", "إلغاء", "cancel", "الغي", "امسح"];
+  return keywords.some((k) => t.includes(k));
 }
 
 // ==============================
@@ -137,99 +234,121 @@ app.post("/webhook", async (req, res) => {
     }
 
     const from = message.from;
-    const text = message.text?.body;
+    const messageType = message.type;
 
-    if (!text) {
+    console.log("📩 Message received:", { from, type: messageType });
+
+    // ========== HANDLE INTERACTIVE (BUTTONS) ==========
+    if (messageType === "interactive") {
+      const interactiveType = message.interactive?.type;
+      const id =
+        interactiveType === "list_reply"
+          ? message.interactive?.list_reply?.id
+          : message.interactive?.button_reply?.id;
+
+      console.log("🔘 Interactive:", id);
+
+      // APPOINTMENT SLOT SELECTED
+      if (id?.startsWith("slot_")) {
+        const appointment = id.replace("slot_", "").toUpperCase();
+        tempBookings[from] = { appointment };
+        await sendTextMessage(from, "👍 تم اختيار الموعد! الآن أرسل اسمك:");
+        return res.sendStatus(200);
+      }
+
+      // SERVICE SELECTED
+      if (id?.startsWith("service_")) {
+        const serviceName = id.replace("service_", "");
+        const booking = tempBookings[from];
+
+        if (!booking || !booking.phone) {
+          await sendTextMessage(from, "⚠️ يجب إكمال خطوات الحجز أولاً.");
+          return res.sendStatus(200);
+        }
+
+        booking.service = serviceName;
+
+        // TODO: Save to Supabase here if needed
+        // await insertBookingToSupabase(booking);
+
+        await sendTextMessage(
+          from,
+          `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
+        );
+
+        delete tempBookings[from];
+        return res.sendStatus(200);
+      }
+
       return res.sendStatus(200);
     }
 
-    console.log("📩 Incoming WhatsApp message:", text);
+    // ========== HANDLE TEXT MESSAGES ==========
+    if (messageType === "text") {
+      const text = message.text?.body;
 
-    // 🤖 Use AI to respond
-    const aiResponse = await askAI(text);
-    await sendMessage(from, aiResponse);
+      if (!text) {
+        return res.sendStatus(200);
+      }
+
+      console.log("💬 Text message:", text);
+
+      // CHECK IF USER WANTS TO BOOK
+      if (!tempBookings[from] && isBookingRequest(text)) {
+        await sendAppointmentOptions(from);
+        return res.sendStatus(200);
+      }
+
+      // CHECK IF USER WANTS TO CANCEL
+      if (isCancelRequest(text)) {
+        await sendTextMessage(
+          from,
+          "📌 أرسل رقم الجوال المستخدم بالحجز لإلغاء الموعد."
+        );
+        return res.sendStatus(200);
+      }
+
+      // BOOKING FLOW: WAITING FOR NAME
+      if (tempBookings[from] && !tempBookings[from].name) {
+        const isValid = await validateNameWithAI(text);
+        if (!isValid) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+          );
+          return res.sendStatus(200);
+        }
+        tempBookings[from].name = text.trim();
+        await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
+        return res.sendStatus(200);
+      }
+
+      // BOOKING FLOW: WAITING FOR PHONE
+      if (tempBookings[from] && !tempBookings[from].phone) {
+        const normalized = text.replace(/[^\d]/g, "");
+        if (!/^07\d{8}$/.test(normalized)) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
+          );
+          return res.sendStatus(200);
+        }
+        tempBookings[from].phone = normalized;
+        await sendServiceList(from);
+        return res.sendStatus(200);
+      }
+
+      // DEFAULT: AI RESPONSE
+      const aiResponse = await askAI(text);
+      await sendTextMessage(from, aiResponse);
+
+      return res.sendStatus(200);
+    }
 
     return res.sendStatus(200);
   } catch (error) {
     console.error("❌ WhatsApp error:", error);
     return res.sendStatus(200);
-  }
-});
-
-// ==============================
-// 3️⃣ SEND WHATSAPP MESSAGE
-// ==============================
-async function sendMessage(to, text) {
-  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-  const TOKEN = process.env.WHATSAPP_TOKEN;
-
-  await axios.post(
-    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      text: { body: text },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-}
-
-// ==============================
-// 🍬 WEBHOOK CANDY (WEBSITE / SUPABASE)
-// ==============================
-app.options("/webhook-candy", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  return res.status(200).end();
-});
-
-app.post("/webhook-candy", async (req, res) => {
-  try {
-    console.log("🔥 Candy webhook received");
-    console.log("Body:", JSON.stringify(req.body, null, 2));
-
-    const payload = req.body.record || req.body;
-    const { name, phone, service } = payload;
-
-    if (!name || !phone || !service) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const messageText = `📢 عميل جديد من الموقع:
-👤 الاسم: ${name}
-📞 الهاتف: ${phone}
-💊 الخدمة: ${service}`;
-
-    const response = await fetch(
-      "https://whatsapp-test-rosy.vercel.app/api/sendWhatsApp",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Smile Clinic",
-          phone: "962781685210",
-          service: "Booking",
-          appointment: messageText,
-        }),
-      }
-    );
-
-    const data = await response.json();
-    console.log("✅ WhatsApp sent from Candy:", data);
-
-    return res.status(200).json({
-      success: true,
-      whatsappResult: data,
-    });
-  } catch (err) {
-    console.error("❌ Candy webhook error:", err);
-    return res.status(500).json({ error: err.message });
   }
 });
 
