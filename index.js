@@ -1,5 +1,6 @@
 import express from "express";
 import axios from "axios";
+import { askAI } from "./aiHelper.js"; // ✅ ADD THIS
 
 const app = express();
 app.use(express.json());
@@ -37,17 +38,23 @@ app.post("/webhook", async (req, res) => {
     const changes = entry?.changes?.[0];
     const message = changes?.value?.messages?.[0];
 
-    if (!message) {
+    if (!message || !message.text) {
       return res.sendStatus(200);
     }
 
     const from = message.from;
-    const text = message.text?.body?.toLowerCase();
+    const text = message.text.body.trim();
 
     console.log("📩 Incoming WhatsApp message:", text);
 
-    if (text === "hello") {
+    // ✅ BASIC GREETING
+    if (text.toLowerCase() === "hello" || text.toLowerCase() === "hi") {
       await sendMessage(from, "Hi 👋 How can I help you?");
+    }
+    // ✅ EVERYTHING ELSE → AI
+    else {
+      const aiReply = await askAI(text);
+      await sendMessage(from, aiReply);
     }
 
     return res.sendStatus(200);
