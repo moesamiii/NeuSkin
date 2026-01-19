@@ -1,5 +1,5 @@
 /**
- * helpers.js (FINAL — Supabase ONLY, No Google Sheets)
+ * helpers.js (WITH DAY SELECTION)
  */
 
 const axios = require("axios");
@@ -47,7 +47,51 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS
+// 📅 DAY SELECTION (NEW)
+// =============================================
+async function sendDayOptions(to) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          header: { type: "text", text: "📅 اختر اليوم" },
+          body: { text: "اختر اليوم المناسب لموعدك:" },
+          action: {
+            button: "عرض الأيام",
+            sections: [
+              {
+                title: "أيام العمل",
+                rows: [
+                  { id: "day_الأحد", title: "الأحد" },
+                  { id: "day_الاثنين", title: "الاثنين" },
+                  { id: "day_الثلاثاء", title: "الثلاثاء" },
+                  { id: "day_الأربعاء", title: "الأربعاء" },
+                  { id: "day_الخميس", title: "الخميس" },
+                  { id: "day_السبت", title: "السبت" },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
+      },
+    );
+  } catch (err) {
+    console.error("❌ Day options error:", err.message);
+  }
+}
+
+// =============================================
+// 🕐 APPOINTMENT TIME BUTTONS
 // =============================================
 async function sendAppointmentOptions(to) {
   try {
@@ -59,7 +103,7 @@ async function sendAppointmentOptions(to) {
         type: "interactive",
         interactive: {
           type: "button",
-          body: { text: "📅 اختر الموعد المناسب لك:" },
+          body: { text: "🕐 اختر الوقت المناسب:" },
           action: {
             buttons: [
               { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
@@ -172,6 +216,7 @@ module.exports = {
 
   // WhatsApp
   sendTextMessage,
+  sendDayOptions,
   sendAppointmentOptions,
   sendServiceList,
 
