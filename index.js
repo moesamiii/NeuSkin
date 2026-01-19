@@ -2,6 +2,14 @@ import express from "express";
 import axios from "axios";
 import Groq from "groq-sdk";
 import { createClient } from "@supabase/supabase-js";
+// ✅ Import media assets
+import {
+  CLINIC_NAME,
+  CLINIC_LOCATION_LINK,
+  OFFER_IMAGES,
+  DOCTOR_IMAGES,
+  DOCTOR_INFO,
+} from "./mediaAssets.js";
 
 const app = express();
 app.use(express.json());
@@ -80,6 +88,23 @@ async function sendTextMessage(to, text) {
   );
 }
 
+// ✅ NEW: Send image with caption
+async function sendImageMessage(to, imageUrl, caption) {
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "image",
+      image: {
+        link: imageUrl,
+        caption: caption,
+      },
+    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
+}
+
 async function sendAppointmentOptions(to) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
@@ -132,6 +157,23 @@ async function sendServiceList(to) {
   );
 }
 
+// ✅ NEW: Send doctor information
+async function sendDoctorInfo(to) {
+  // Send intro message
+  await sendTextMessage(to, "👨‍⚕️ فريق الأطباء لدينا:\n");
+
+  // Send each doctor's image with their info
+  for (let i = 0; i < DOCTOR_INFO.length; i++) {
+    const doctor = DOCTOR_INFO[i];
+    const caption = `${doctor.name}\n${doctor.specialization}`;
+
+    await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
+
+    // Small delay to avoid rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
 // ==============================
 // 🧠 BOOKING STATE
 // ==============================
@@ -140,6 +182,13 @@ const tempBookings = {};
 // ✅ booking intent ONLY
 function isBookingRequest(text) {
   return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
+}
+
+// ✅ NEW: Check if asking about doctors
+function isDoctorRequest(text) {
+  return /(طبيب|اطباء|أطباء|الاطباء|الأطباء|دكتور|دكاترة|doctor|doctors)/i.test(
+    text,
+  );
 }
 
 // ==============================
@@ -184,6 +233,12 @@ app.post("/webhook", async (req, res) => {
   // ---------------- TEXT ----------------
   if (message.type === "text") {
     const text = message.text.body;
+
+    // ✅ NEW: Check if asking about doctors (before booking check)
+    if (!tempBookings[from] && isDoctorRequest(text)) {
+      await sendDoctorInfo(from);
+      return res.sendStatus(200);
+    }
 
     // 🚫 لا تبدأ الحجز إلا إذا طلبه
     if (!tempBookings[from] && !isBookingRequest(text)) {
