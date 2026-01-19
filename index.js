@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 // ==============================
-// 🔑 SUPABASE SETUP (ADDED)
+// 🔑 SUPABASE SETUP
 // ==============================
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -16,9 +16,7 @@ const supabase = createClient(
 
 async function insertBookingToSupabase(booking) {
   try {
-    console.log("📥 INSERT BOOKING REQUEST:", booking);
-
-    const { data, error } = await supabase.from("bookings").insert([
+    await supabase.from("bookings").insert([
       {
         name: booking.name,
         phone: booking.phone,
@@ -27,79 +25,49 @@ async function insertBookingToSupabase(booking) {
         status: "new",
       },
     ]);
-
-    if (error) {
-      console.error("❌ Supabase insert error:", error.message);
-      return false;
-    }
-
-    console.log("✅ SUPABASE INSERT SUCCESS");
     return true;
   } catch (err) {
-    console.error("❌ Supabase exception:", err.message);
+    console.error("❌ Supabase error:", err.message);
     return false;
   }
 }
 
 // ==============================
-// 🤖 GROQ AI SETUP
+// 🤖 GROQ AI
 // ==============================
 const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 function detectLanguage(text) {
-  const arabic = /[\u0600-\u06FF]/;
-  return arabic.test(text) ? "ar" : "en";
+  return /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
 }
 
 async function askAI(userMessage) {
   try {
     const lang = detectLanguage(userMessage);
 
-    const arabicPrompt = `أنت موظف خدمة عملاء ذكي وودود في "عيادة ابتسامة الطبيّة".
-📍 الموقع: عمّان – عبدون، خلف بنك الإسكان، الطابق الأول.
-🕒 مواعيد العمل: يوميًا من الساعة 2 ظهرًا حتى الساعة 10 مساءً (الجمعة مغلق).`;
-
-    const englishPrompt = `You are a friendly customer service assistant at "Smile Medical Clinic".`;
+    const systemPrompt =
+      lang === "ar"
+        ? `أنت موظف خدمة عملاء في عيادة ابتسامة. لا تبدأ الحجز إلا إذا طلب المستخدم ذلك صراحة.`
+        : `You are a clinic assistant. Do not start booking unless user asks explicitly.`;
 
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        {
-          role: "system",
-          content: lang === "ar" ? arabicPrompt : englishPrompt,
-        },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,
-      max_completion_tokens: 512,
+      max_completion_tokens: 300,
     });
 
-    return completion.choices[0]?.message?.content || "عذرًا، لم أفهم سؤالك.";
-  } catch (err) {
-    console.error("❌ AI Error:", err.message);
-    return "⚠️ حدث خطأ في نظام المساعد الذكي.";
-  }
-}
-
-async function validateNameWithAI(name) {
-  try {
-    const prompt = `هل "${name}" يبدو اسم شخص حقيقي؟ أجب بـ "نعم" أو "لا" فقط.`;
-    const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0,
-      max_completion_tokens: 10,
-    });
-    const reply =
-      completion.choices?.[0]?.message?.content?.toLowerCase() || "";
-    return reply.includes("نعم") || reply.includes("yes");
+    return completion.choices[0]?.message?.content || "";
   } catch {
-    return true;
+    return "⚠️ حدث خطأ.";
   }
 }
 
 // ==============================
-// 💬 WHATSAPP FUNCTIONS
+// 📞 WHATSAPP
 // ==============================
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -144,9 +112,9 @@ async function sendServiceList(to) {
       type: "interactive",
       interactive: {
         type: "list",
-        body: { text: "اختر نوع الخدمة من القائمة:" },
+        body: { text: "اختر نوع الخدمة:" },
         action: {
-          button: "عرض الخدمات",
+          button: "الخدمات",
           sections: [
             {
               title: "الخدمات",
@@ -169,6 +137,11 @@ async function sendServiceList(to) {
 // ==============================
 const tempBookings = {};
 
+// ✅ booking intent ONLY
+function isBookingRequest(text) {
+  return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
+}
+
 // ==============================
 // 📩 WEBHOOK
 // ==============================
@@ -178,7 +151,7 @@ app.post("/webhook", async (req, res) => {
 
   const from = message.from;
 
-  // BUTTONS
+  // ---------------- BUTTONS ----------------
   if (message.type === "interactive") {
     const id =
       message.interactive?.list_reply?.id ||
@@ -200,7 +173,7 @@ app.post("/webhook", async (req, res) => {
 
       await sendTextMessage(
         from,
-        `✅ تم حفظ الحجز:\n${booking.name}\n${booking.phone}\n${booking.service}`,
+        `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
       );
 
       delete tempBookings[from];
@@ -208,23 +181,31 @@ app.post("/webhook", async (req, res) => {
     }
   }
 
-  // TEXT
+  // ---------------- TEXT ----------------
   if (message.type === "text") {
     const text = message.text.body;
 
-    if (!tempBookings[from]) {
+    // 🚫 لا تبدأ الحجز إلا إذا طلبه
+    if (!tempBookings[from] && !isBookingRequest(text)) {
+      const reply = await askAI(text);
+      await sendTextMessage(from, reply);
+      return res.sendStatus(200);
+    }
+
+    // ▶️ بدء الحجز
+    if (!tempBookings[from] && isBookingRequest(text)) {
       tempBookings[from] = {};
       await sendAppointmentOptions(from);
       return res.sendStatus(200);
     }
 
-    if (!tempBookings[from].name) {
+    if (tempBookings[from] && !tempBookings[from].name) {
       tempBookings[from].name = text;
       await sendTextMessage(from, "📱 أرسل رقم الجوال:");
       return res.sendStatus(200);
     }
 
-    if (!tempBookings[from].phone) {
+    if (tempBookings[from] && !tempBookings[from].phone) {
       tempBookings[from].phone = text.replace(/\D/g, "");
       await sendServiceList(from);
       return res.sendStatus(200);
