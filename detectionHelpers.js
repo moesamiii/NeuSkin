@@ -1,5 +1,5 @@
 /**
- * detectionHelpers.js (UPDATED WITH CANCEL DETECTION)
+ * detectionHelpers.js (FINAL – Doctors / Booking FIXED)
  */
 
 const crypto = require("crypto");
@@ -28,7 +28,7 @@ function getGreeting(isEnglish = false) {
     "Welcome to *Ibtisama Medical Clinic*! How can I support you today?",
     "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
     "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
-    "Good day! 💚 How can I assist you with your dental or beauty needs today?",
+    "Good day! 💚 How can I assist you with your dental needs today?",
     "😊 Hi! You've reached *Ibtisama Clinic*, your smile is our priority!",
     "👋 Hello there! Would you like to see our latest offers or book an appointment?",
     "Welcome! 🌸 How can I help you take care of your smile today?",
@@ -76,7 +76,7 @@ function isGreeting(text = "") {
 }
 
 // ---------------------------------------------
-// 🗺️ Location Detection Helper
+// 🗺️ Location Detection
 // ---------------------------------------------
 function isLocationRequest(text = "") {
   const keywords = [
@@ -89,7 +89,6 @@ function isLocationRequest(text = "") {
     "location",
     "where",
     "address",
-    "place",
     "maps",
     "وينكم",
     "فينكم",
@@ -98,7 +97,7 @@ function isLocationRequest(text = "") {
 }
 
 // ---------------------------------------------
-// 🎁 Offers Detection Helper
+// 🎁 Offers Detection
 // ---------------------------------------------
 function isOffersRequest(text = "") {
   const keywords = [
@@ -110,76 +109,51 @@ function isOffersRequest(text = "") {
     "باقات",
     "باكيج",
     "بكج",
-    "عرض خاص",
-    "عرض اليوم",
-    "وش عروضكم",
-    "فيه عروض",
-    "ابي عرض",
-    "عطوني العرض",
-    "بكم",
-    "كم السعر",
     "offer",
     "offers",
     "discount",
-    "price",
     "deal",
   ];
   return includesAny(keywords, text);
 }
 
 function isOffersConfirmation(text = "") {
-  if (!text) return false;
-  const normalizedText = text
+  const normalizedText = String(text || "")
     .replace(/\u0640/g, "")
     .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "")
-    .trim()
     .toLowerCase();
 
   const patterns = [
     "ارسل",
     "رسل",
-    "أرسل",
-    "ابغى",
-    "أبغى",
     "ابي",
-    "أبي",
-    "ايه",
-    "إيه",
-    "ايوه",
-    "أيوه",
+    "ابغى",
     "نعم",
-    "ارسلي",
-    "ابعث",
-    "ارسلهم",
-    "ارسله",
-    "ارسل العرض",
+    "ايه",
+    "ايوه",
     "yes",
-    "yeah",
-    "yup",
     "ok",
-    "okay",
-    "sure",
     "send",
-    "send it",
-    "send them",
     "show",
-    "show me",
-    "i want",
-    "i need",
   ];
 
   return patterns.some((p) => normalizedText.includes(p));
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Doctors
+// 👨‍⚕️ Doctors Detection (IMPORTANT)
 // ---------------------------------------------
 function isDoctorsRequest(text = "") {
   const keywords = [
-    "دكتور",
-    "دكاترة",
-    "طبيب",
+    "الأطباء",
+    "اطباء",
     "أطباء",
+    "الدكاترة",
+    "دكاترة",
+    "دكتور",
+    "طبيب",
+    "طاقم طبي",
+    "فريق طبي",
     "doctor",
     "doctors",
     "dr",
@@ -188,48 +162,43 @@ function isDoctorsRequest(text = "") {
 }
 
 // ---------------------------------------------
-// 📅 Booking Detection
+// 📅 Booking Detection (ONLY booking words)
 // ---------------------------------------------
 function isBookingRequest(text = "") {
   const keywords = [
+    "حجز",
+    "احجز",
+    "موعد",
+    "ابي احجز",
+    "ابغى احجز",
     "book",
     "booking",
     "appointment",
     "reserve",
-    "حجز",
-    "موعد",
-    "احجز",
-    "ابغى احجز",
   ];
   return includesAny(keywords, text);
 }
 
 // ---------------------------------------------
-// ❗❗ NEW — CANCEL Booking Detection
+// ❌ Cancel Booking Detection
 // ---------------------------------------------
 function isCancelRequest(text = "") {
   const keywords = [
-    "cancel",
-    "cancel booking",
-    "cancel appointment",
     "الغاء",
     "إلغاء",
     "الغي",
-    "ألغي",
+    "كنسل",
+    "cancel",
+    "cancel booking",
+    "cancel appointment",
     "ابغى الغي",
     "ابي الغي",
-    "اريد الغاء",
-    "الغاء الحجز",
-    "بدي الغي",
-    "ما بدي الموعد",
-    "كنسل",
-    "cancel my booking",
   ];
   return includesAny(keywords, text);
 }
 
 // ---------------------------------------------
-// Language Detection
+// 🌐 Language Detection
 // ---------------------------------------------
 function isEnglish(text = "") {
   const arabicPattern = /[\u0600-\u06FF]/;
