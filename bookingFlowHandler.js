@@ -36,7 +36,7 @@ function getSession(userId) {
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
       waitingForCancelPhone: false,
-      lastIntent: null,
+      lastIntent: null, // ✅ important
     };
   }
   return sessions[userId];
@@ -96,10 +96,8 @@ async function handleInteractiveMessage(message, from, tempBookings) {
 
     console.log("✅ Final booking object:", booking);
 
-    // Save booking
     await insertBookingToSupabase(booking);
 
-    // Confirmation
     await sendTextMessage(
       from,
       `✅ تم حفظ حجزك بنجاح:\n\n👤 الاسم: ${booking.name}\n📱 الجوال: ${booking.phone}\n💊 الخدمة: ${booking.service}\n📅 الموعد: ${booking.appointment}`,
@@ -126,22 +124,21 @@ async function handleTextMessage(text, from, tempBookings) {
    * ==================================================
    */
 
-  // Step 1 — Detect cancel intent
+  // STEP 1 — detect cancel
   if (isCancelRequest(text)) {
     console.log("❌ Cancel intent detected");
 
-    // Stop any booking flow
-    if (tempBookings[from]) {
-      delete tempBookings[from];
-    }
+    // stop any booking
+    if (tempBookings[from]) delete tempBookings[from];
 
     session.waitingForCancelPhone = true;
+    session.lastIntent = "cancel";
 
     await askForCancellationPhone(from);
     return;
   }
 
-  // Step 2 — Waiting for phone number
+  // STEP 2 — receive phone and cancel
   if (session.waitingForCancelPhone) {
     const phone = text.replace(/\D/g, "");
 
@@ -154,9 +151,10 @@ async function handleTextMessage(text, from, tempBookings) {
     }
 
     session.waitingForCancelPhone = false;
+    session.lastIntent = "cancel_done"; // ✅ lock conversation
 
     await processCancellation(from, phone);
-    return;
+    return; // 🔥 HARD STOP
   }
 
   /**
@@ -165,13 +163,11 @@ async function handleTextMessage(text, from, tempBookings) {
    * ==================================================
    */
 
-  // Start booking
   if (!tempBookings[from] && isBookingRequest(text)) {
     await sendAppointmentOptions(from);
     return;
   }
 
-  // Quick shortcut (3 / 6 / 9)
   if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
     tempBookings[from] = { appointment: `${text} PM` };
 
@@ -179,19 +175,16 @@ async function handleTextMessage(text, from, tempBookings) {
     return;
   }
 
-  // Name step
   if (tempBookings[from] && !tempBookings[from].name) {
     await handleNameStep(text, from, tempBookings);
     return;
   }
 
-  // Phone step
   if (tempBookings[from] && !tempBookings[from].phone) {
     await handlePhoneStep(text, from, tempBookings);
     return;
   }
 
-  // Service step
   if (tempBookings[from] && !tempBookings[from].service) {
     await handleServiceStep(text, from, tempBookings);
     return;
@@ -199,10 +192,15 @@ async function handleTextMessage(text, from, tempBookings) {
 
   /**
    * ==================================================
-   * 🤖 AI FALLBACK
+   * 🤖 AI FALLBACK (BLOCKED AFTER CANCEL)
    * ==================================================
    */
   if (!tempBookings[from]) {
+    if (session.lastIntent === "cancel_done") {
+      // ❌ conversation ended
+      return;
+    }
+
     const reply = await askAI(text);
     await sendTextMessage(from, reply);
     return;
