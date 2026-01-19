@@ -27,7 +27,6 @@ const DOCTOR_INFO = [
 const userMessageTimestamps = {}; // Track message timestamps per user
 const userWarnings = {}; // Track warnings issued to users
 const blockedUsers = {}; // Track temporarily blocked users
-const lastWarningTime = {}; // Track when last warning was sent
 
 const RATE_LIMIT_CONFIG = {
   MAX_MESSAGES_PER_WINDOW: 5, // Max messages allowed in time window
@@ -36,7 +35,6 @@ const RATE_LIMIT_CONFIG = {
   WARNING_WINDOW_MS: 3000, // 3 seconds for warning threshold
   BLOCK_DURATION_MS: 60000, // Block for 1 minute
   MAX_WARNINGS: 2, // After 2 warnings, block user
-  WARNING_COOLDOWN_MS: 30000, // Only send one warning per 30 seconds
 };
 
 function checkRateLimit(userId) {
@@ -58,7 +56,6 @@ function checkRateLimit(userId) {
       // Unblock user
       delete blockedUsers[userId];
       delete userWarnings[userId];
-      delete lastWarningTime[userId];
       userMessageTimestamps[userId] = [];
     }
   }
@@ -93,25 +90,11 @@ function checkRateLimit(userId) {
       };
     }
 
-    // Check if we should send a warning (cooldown period)
-    const shouldSendWarning =
-      !lastWarningTime[userId] ||
-      now - lastWarningTime[userId] > RATE_LIMIT_CONFIG.WARNING_COOLDOWN_MS;
-
-    if (shouldSendWarning) {
-      lastWarningTime[userId] = now;
-      return {
-        allowed: true,
-        warning: true,
-        warningCount: userWarnings[userId],
-      };
-    } else {
-      // Silent warning - don't annoy user
-      return {
-        allowed: true,
-        warning: false,
-      };
-    }
+    return {
+      allowed: true,
+      warning: true,
+      warningCount: userWarnings[userId],
+    };
   }
 
   // Check if user exceeded rate limit
@@ -119,12 +102,10 @@ function checkRateLimit(userId) {
     userMessageTimestamps[userId].length >=
     RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_WINDOW
   ) {
-    // Silently ignore - don't send message
-    console.log(`⚠️ Rate limit exceeded for ${userId} - silently ignoring`);
     return {
       allowed: false,
       blocked: false,
-      silent: true, // New flag for silent rejection
+      message: "تجاوزت الحد المسموح من الرسائل",
     };
   }
 
@@ -157,7 +138,6 @@ setInterval(() => {
     if (now - blockedUsers[userId] >= RATE_LIMIT_CONFIG.BLOCK_DURATION_MS) {
       delete blockedUsers[userId];
       delete userWarnings[userId];
-      delete lastWarningTime[userId];
     }
   }
 }, 300000); // 5 minutes
@@ -409,20 +389,22 @@ app.post("/webhook", async (req, res) => {
 
   if (!rateLimitCheck.allowed) {
     if (rateLimitCheck.blocked) {
-      // Only send message when blocked, not for regular rate limiting
       console.log(`🚫 Blocked user ${from} attempted to send message`);
       await sendTextMessage(
         from,
         `⛔ تم حظرك مؤقتاً بسبب إرسال رسائل كثيرة.\n\nسيتم رفع الحظر بعد ${rateLimitCheck.remainingTime} ثانية.\n\nيرجى الانتظار والتواصل بشكل طبيعي.`,
       );
       return res.sendStatus(200);
-    } else if (rateLimitCheck.silent) {
-      // Silently ignore - no message sent
+    } else {
+      await sendTextMessage(
+        from,
+        "⚠️ يرجى الانتظار قليلاً قبل إرسال رسائل إضافية.",
+      );
       return res.sendStatus(200);
     }
   }
 
-  // Issue warning if needed (only once per cooldown period)
+  // Issue warning if needed
   if (rateLimitCheck.warning) {
     console.log(`⚠️ Warning ${rateLimitCheck.warningCount} issued to ${from}`);
     await sendTextMessage(
