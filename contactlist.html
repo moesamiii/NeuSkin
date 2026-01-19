@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
@@ -1004,7 +1004,7 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
-        SUPABASE_KEY
+        SUPABASE_KEY,
       );
 
       let contacts = [];
@@ -1377,7 +1377,7 @@
             "رقم الهاتف": contact.phone,
             الخدمة: contact.service || "",
             "تاريخ الإضافة": new Date(contact.created_at).toLocaleString(
-              "ar-EG"
+              "ar-EG",
             ),
           }));
 
@@ -1479,24 +1479,18 @@
           const result = await importContacts(data);
 
           // Show stats
-          document.getElementById(
-            "totalRows"
-          ).textContent = `إجمالي الصفوف: ${result.total}`;
-          document.getElementById(
-            "successRows"
-          ).textContent = `تم استيرادها بنجاح: ${result.success}`;
-          document.getElementById(
-            "fixedRows"
-          ).textContent = `تم تصحيح رمز الدولة: ${result.fixed}`;
-          document.getElementById(
-            "serviceRows"
-          ).textContent = `مع خدمة: ${result.withService}`;
-          document.getElementById(
-            "errorRows"
-          ).textContent = `فشل الاستيراد: ${result.failed}`;
-          document.getElementById(
-            "duplicateRows"
-          ).textContent = `مكررة (تم تخطيها): ${result.duplicates}`;
+          document.getElementById("totalRows").textContent =
+            `إجمالي الصفوف: ${result.total}`;
+          document.getElementById("successRows").textContent =
+            `تم استيرادها بنجاح: ${result.success}`;
+          document.getElementById("fixedRows").textContent =
+            `تم تصحيح رمز الدولة: ${result.fixed}`;
+          document.getElementById("serviceRows").textContent =
+            `مع خدمة: ${result.withService}`;
+          document.getElementById("errorRows").textContent =
+            `فشل الاستيراد: ${result.failed}`;
+          document.getElementById("duplicateRows").textContent =
+            `مكررة (تم تخطيها): ${result.duplicates}`;
           importStats.classList.add("show");
 
           if (result.success > 0) {
@@ -1729,7 +1723,7 @@
           } else {
             showToast(
               "يرجى اختيار ملف Excel صالح (.xlsx, .xls, .csv)",
-              "error"
+              "error",
             );
           }
         }
@@ -1758,7 +1752,7 @@
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
+        sidebar.classList.toggle("active"),
       );
 
       // ✅ Add contact listener

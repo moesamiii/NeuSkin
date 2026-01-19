@@ -1,17 +1,31 @@
 const { createClient } = require("@supabase/supabase-js");
 
 // ==============================================
-// Create Supabase inside a function (fix Vercel)
+// 🔐 Create Supabase client (Server / Vercel safe)
 // ==============================================
 function getSupabase() {
+  if (!process.env.SUPABASE_URL) {
+    throw new Error("❌ SUPABASE_URL is missing");
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("❌ SUPABASE_SERVICE_ROLE_KEY is missing");
+  }
+
   return createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    },
   );
 }
 
 // ==============================================
-// Normalize phone (do NOT remove leading zero)
+// 📞 Normalize phone (keep leading zero)
 // ==============================================
 function normalizePhone(phone) {
   if (!phone) return "";
@@ -19,77 +33,74 @@ function normalizePhone(phone) {
 }
 
 // ==============================================
-// Save NEW booking into Supabase
+// ✅ INSERT NEW BOOKING
 // ==============================================
 async function insertBookingToSupabase(booking) {
-  try {
-    console.log(
-      "🔑 SUPABASE_SERVICE_KEY:",
-      process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
-    );
+  console.log("📥 INSERT BOOKING REQUEST:", booking);
 
+  try {
     const supabase = getSupabase();
-    const now = new Date().toISOString();
+
+    const payload = {
+      name: booking.name,
+      phone: normalizePhone(booking.phone),
+      service: booking.service,
+      appointment: booking.appointment,
+      status: "new",
+      time: new Date().toISOString(),
+    };
 
     const { data, error } = await supabase
       .from("bookings")
-      .insert([
-        {
-          name: booking.name,
-          phone: booking.phone,
-          service: booking.service,
-          appointment: booking.appointment,
-          time: now,
-          status: "new",
-        },
-      ])
-      .select();
+      .insert([payload])
+      .select()
+      .single();
 
     if (error) {
-      console.error("❌ Supabase insert error:", error.message);
+      console.error("❌ SUPABASE INSERT ERROR:", error);
       return null;
     }
 
-    console.log("✅ Saved to Supabase:", data);
+    console.log("✅ SUPABASE INSERT SUCCESS:", data);
     return data;
   } catch (err) {
-    console.error("❌ Unexpected Supabase insert error:", err.message);
+    console.error("❌ INSERT EXCEPTION:", err.message);
     return null;
   }
 }
 
 // ==============================================
-// Find last booking by phone
+// 🔎 FIND LAST BOOKING BY PHONE
 // ==============================================
 async function findLastBookingByPhone(rawPhone) {
   try {
     const supabase = getSupabase();
-    const normalized = normalizePhone(rawPhone);
+    const phone = normalizePhone(rawPhone);
 
-    console.log("📌 Searching for phone:", normalized);
+    console.log("🔍 Searching booking for phone:", phone);
 
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .eq("phone", normalized)
+      .eq("phone", phone)
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(1)
+      .single();
 
     if (error) {
-      console.error("❌ Supabase error:", error.message);
+      console.error("❌ FIND BOOKING ERROR:", error);
       return null;
     }
 
-    if (data && data.length > 0) return data[0];
-    return null;
+    return data;
   } catch (err) {
-    console.error("❌ Unexpected Supabase find error:", err.message);
+    console.error("❌ FIND BOOKING EXCEPTION:", err.message);
     return null;
   }
 }
 
 // ==============================================
-// Update booking - cancel
+// 🔄 UPDATE BOOKING STATUS
 // ==============================================
 async function updateBookingStatus(id, newStatus) {
   try {
@@ -101,25 +112,23 @@ async function updateBookingStatus(id, newStatus) {
       .eq("id", id);
 
     if (error) {
-      console.error("❌ Supabase update error:", error.message);
+      console.error("❌ UPDATE STATUS ERROR:", error);
       return false;
     }
 
     return true;
   } catch (err) {
-    console.error("❌ Unexpected update error:", err.message);
+    console.error("❌ UPDATE STATUS EXCEPTION:", err.message);
     return false;
   }
 }
 
 // ==============================================
-// ✅ NEW: Get ALL bookings for dashboard
+// 📊 GET ALL BOOKINGS (Dashboard)
 // ==============================================
 async function getAllBookingsFromSupabase() {
   try {
     const supabase = getSupabase();
-
-    console.log("📥 Fetching all bookings from Supabase...");
 
     const { data, error } = await supabase
       .from("bookings")
@@ -127,24 +136,23 @@ async function getAllBookingsFromSupabase() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Supabase fetch error:", error.message);
+      console.error("❌ FETCH BOOKINGS ERROR:", error);
       return [];
     }
 
-    console.log(`✅ Retrieved ${data.length} bookings from Supabase`);
     return data;
   } catch (err) {
-    console.error("❌ Unexpected fetch error:", err.message);
+    console.error("❌ FETCH BOOKINGS EXCEPTION:", err.message);
     return [];
   }
 }
 
 // ==============================================
-// ✅ UPDATED EXPORTS
+// 📤 EXPORTS
 // ==============================================
 module.exports = {
+  insertBookingToSupabase,
   findLastBookingByPhone,
   updateBookingStatus,
-  insertBookingToSupabase,
-  getAllBookingsFromSupabase, // ✅ NEW FUNCTION ADDED
+  getAllBookingsFromSupabase,
 };
