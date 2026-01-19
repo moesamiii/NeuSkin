@@ -1,5 +1,5 @@
 /**
- * bookingFlowHandler.js (FIXED - Cancel Detection Priority)
+ * bookingFlowHandler.js (FIXED SERVICE SELECTION)
  *
  * Responsibilities:
  * - Handle booking flow (name → phone → service)
@@ -121,28 +121,22 @@ async function handleTextMessage(text, from, tempBookings) {
 
   /**
    * ---------------------------------------------
-   * 🔥 CANCEL BOOKING SYSTEM (HIGHEST PRIORITY)
+   * 🔥 CANCEL BOOKING SYSTEM
    * ---------------------------------------------
    */
 
-  // ✅ STEP 1 — Detect cancel intent FIRST (before any other checks)
+  // Step 1 — Detect cancel intent
   if (isCancelRequest(text)) {
-    console.log("🚫 Cancel request detected for:", from);
-
     session.waitingForCancelPhone = true;
-    session.lastIntent = "cancel";
 
-    // Stop any booking flow currently running
-    if (tempBookings[from]) {
-      console.log("🗑️ Clearing existing booking state");
-      delete tempBookings[from];
-    }
+    // stop any booking flow currently running
+    if (tempBookings[from]) delete tempBookings[from];
 
     await askForCancellationPhone(from);
     return;
   }
 
-  // ✅ STEP 2 — Waiting for phone input to cancel booking
+  // Step 2 — Waiting for phone input to cancel booking
   if (session.waitingForCancelPhone) {
     const phone = text.replace(/\D/g, "");
 
@@ -152,7 +146,6 @@ async function handleTextMessage(text, from, tempBookings) {
     }
 
     session.waitingForCancelPhone = false;
-    session.lastIntent = null;
 
     await processCancellation(from, phone);
     return;
@@ -160,7 +153,7 @@ async function handleTextMessage(text, from, tempBookings) {
 
   /**
    * ---------------------------------------------
-   * 🔥 BOOKING FLOW (AFTER cancel check)
+   * 🔥 BOOKING FLOW
    * ---------------------------------------------
    */
 
@@ -191,16 +184,15 @@ async function handleTextMessage(text, from, tempBookings) {
     return;
   }
 
-  // User wants to start NEW booking
+  // User wants to start booking
   if (!tempBookings[from] && isBookingRequest(text)) {
-    console.log("📅 New booking request detected for:", from);
     await sendAppointmentOptions(from);
     return;
   }
 
   /**
    * ---------------------------------------------
-   * 🤖 AI fallback (when no booking in progress)
+   * 🤖 AI fallback
    * ---------------------------------------------
    */
   if (!tempBookings[from]) {
