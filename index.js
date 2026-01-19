@@ -7,6 +7,21 @@ const app = express();
 app.use(express.json());
 
 // ==============================
+// 📸 DOCTOR DATA
+// ==============================
+const DOCTOR_IMAGES = [
+  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
+  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
+  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
+];
+
+const DOCTOR_INFO = [
+  { name: "د. أحمد الخطيب", specialization: "تقويم الأسنان" },
+  { name: "د. سارة محمود", specialization: "تجميل الأسنان" },
+  { name: "د. خالد العمري", specialization: "طب الأسنان العام" },
+];
+
+// ==============================
 // 🔑 SUPABASE SETUP
 // ==============================
 const supabase = createClient(
@@ -80,6 +95,39 @@ async function sendTextMessage(to, text) {
   );
 }
 
+// ✅ NEW: Send image message
+async function sendImageMessage(to, imageUrl, caption) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "image",
+        image: {
+          link: imageUrl,
+          caption: caption,
+        },
+      },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+    );
+  } catch (err) {
+    console.error("❌ Image send error:", err.message);
+  }
+}
+
+// ✅ NEW: Send doctor info
+async function sendDoctorInfo(to) {
+  await sendTextMessage(to, "👨‍⚕️ فريق الأطباء لدينا:");
+
+  for (let i = 0; i < DOCTOR_INFO.length; i++) {
+    const doctor = DOCTOR_INFO[i];
+    const caption = `${doctor.name}\n${doctor.specialization}`;
+    await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
 async function sendAppointmentOptions(to) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
@@ -142,6 +190,13 @@ function isBookingRequest(text) {
   return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
 }
 
+// ✅ NEW: Check for doctor request
+function isDoctorRequest(text) {
+  return /(طبيب|اطباء|أطباء|الاطباء|الأطباء|دكتور|دكاترة|doctor|doctors)/i.test(
+    text,
+  );
+}
+
 // ==============================
 // 📩 WEBHOOK
 // ==============================
@@ -184,6 +239,12 @@ app.post("/webhook", async (req, res) => {
   // ---------------- TEXT ----------------
   if (message.type === "text") {
     const text = message.text.body;
+
+    // ✅ NEW: Check for doctor request FIRST
+    if (!tempBookings[from] && isDoctorRequest(text)) {
+      await sendDoctorInfo(from);
+      return res.sendStatus(200);
+    }
 
     // 🚫 لا تبدأ الحجز إلا إذا طلبه
     if (!tempBookings[from] && !isBookingRequest(text)) {
