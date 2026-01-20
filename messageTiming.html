@@ -782,5 +782,14 @@
       window.logout = logout;
       window.login = login;
     </script>
+    <script>
+      // ✅ Auto-fill test number
+      document.addEventListener("DOMContentLoaded", () => {
+        const phoneInput = document.getElementById("testPhone");
+        if (phoneInput) {
+          phoneInput.value = "962785050875";
+        }
+      });
+    </script>
   </body>
 </html>
