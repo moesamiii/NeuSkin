@@ -24,7 +24,7 @@ async function transcribeAudio(mediaId, from) {
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
         headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-      }
+      },
     );
 
     const mediaUrl = mediaUrlResponse.data?.url;
@@ -54,7 +54,7 @@ async function transcribeAudio(mediaId, from) {
           Authorization: `Bearer ${GROQ_API_KEY}`,
           ...form.getHeaders(),
         },
-      }
+      },
     );
 
     const text = result.data?.text?.trim() || null;
@@ -67,7 +67,7 @@ async function transcribeAudio(mediaId, from) {
   } catch (err) {
     console.error(
       "❌ Voice transcription failed:",
-      err.response?.data || err.message
+      err.response?.data || err.message,
     );
     return null;
   }

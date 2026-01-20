@@ -1,5 +1,15 @@
 // clinicBotReplies.js
 
+const { createClient } = require("@supabase/supabase-js");
+const crypto = require("crypto");
+
+// 🔹 Supabase client (SERVER SIDE)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY, // ⚠️ SERVICE ROLE KEY
+);
+
+// 🔹 Normalize text
 function normalize(text) {
   return text
     .toLowerCase()
@@ -7,18 +17,10 @@ function normalize(text) {
     .trim();
 }
 
-// 🔹 كلمات مفتاحية رئيسية
+// 🔹 Keywords
 const keywords = {
   greeting: ["مرحبا", "اهلا", "السلام", "hi", "hello", "hey"],
-  schedule: [
-    "مواعيد",
-    "اوقات",
-    "دوام",
-    "opening",
-    "hours",
-    "schedule",
-    "work time",
-  ],
+  schedule: ["مواعيد", "اوقات", "دوام", "opening", "hours", "schedule"],
   price: ["سعر", "الفلوس", "كشف", "تكلفة", "price", "cost", "fees"],
   location: ["موقع", "وين", "address", "location", "map", "place"],
   thanks: ["شكرا", "thx", "thanks", "thank you", "مشكور"],
@@ -27,39 +29,41 @@ const keywords = {
   offers: ["خصم", "عرض", "offer", "discount", "promo"],
 };
 
-// 🔹 أسئلة متكرّرة
+// 🔹 FAQs (static – later يمكن نقلها للـ DB)
 const faqs = [
   {
     q: ["هل يوجد تنظيف اسنان", "teeth cleaning", "teeth polish"],
-    a: "🦷 نعم، نقدم خدمة تنظيف وتلميع الأسنان بأحدث الأجهزة وبإشراف أطباء مختصين.",
-  },
-  {
-    q: ["هل يوجد طبيبة نساء", "gynecologist", "lady doctor"],
-    a: "👩‍⚕️ نعم، لدينا طبيبة نساء وولادة متخصصة، ويمكن حجز موعد بسهولة عبر الواتساب.",
-  },
-  {
-    q: ["هل عندكم خصم", "offers", "discount", "promotion"],
-    a: "🎉 نعم! لدينا عروض موسمية مميزة على الكشف والعلاجات، تواصل معنا لمعرفة التفاصيل الحالية.",
-  },
-  {
-    q: ["مين الاطباء", "who is the doctor", "specialist"],
-    a: "👨‍⚕️ لدينا نخبة من الأطباء في تخصصات الجلدية، الأسنان، والتجميل. أخبرني ما التخصص الذي تبحث عنه؟",
+    a: "🦷 نعم، نقدم خدمة تنظيف وتلميع الأسنان بأحدث الأجهزة.",
   },
   {
     q: ["هل تقبلون تأمين", "insurance"],
-    a: "💳 نعم، نقبل أغلب شركات التأمين الطبي. يمكنك إرسال اسم شركتك لنتأكد منها.",
+    a: "💳 نعم، نقبل أغلب شركات التأمين الطبي.",
   },
 ];
 
-// 🔹 ردود عشوائية لإضفاء طبيعية
+// 🔹 Random picker
 function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-// 🔹 الرد الذكي (نسخة محسّنة لمنع الخلط بين العروض والأطباء)
-function getReply(text) {
+// 🔹 MAIN FUNCTION
+async function getReply(text) {
   const lower = normalize(text);
   const isEnglish = /[a-z]/i.test(text);
+
+  // 🔹 Load clinic settings
+  const { data: settings, error } = await supabase
+    .from("clinic_settings")
+    .select("*")
+    .eq("clinic_id", "default")
+    .single();
+
+  if (error || !settings) {
+    console.error("❌ Clinic settings not found", error);
+    return isEnglish
+      ? "Sorry, clinic information is not available right now."
+      : "عذراً، بيانات العيادة غير متوفرة حالياً.";
+  }
 
   // ---------- STEP 1: SCORING ----------
   const scores = {
@@ -73,7 +77,7 @@ function getReply(text) {
     offers: keywords.offers.filter((w) => lower.includes(w)).length,
   };
 
-  // ---------- STEP 2: Pick the strongest intent ----------
+  // ---------- STEP 2: Pick intent ----------
   let topIntent = null;
   let maxScore = 0;
   for (const [key, value] of Object.entries(scores)) {
@@ -84,100 +88,70 @@ function getReply(text) {
   }
 
   // ---------- STEP 3: Resolve conflicts ----------
-  // If both doctor & offers are present, prefer "offers"
   if (scores.doctor > 0 && scores.offers > 0) {
     topIntent = "offers";
   }
 
-  // ---------- STEP 4: Respond based on final intent ----------
+  // ---------- STEP 4: RESPONSES ----------
   switch (topIntent) {
     case "greeting": {
-      const crypto = require("crypto");
-      const randomIndex = (max) =>
-        parseInt(crypto.randomBytes(2).toString("hex"), 16) % max;
-      const englishGreetings = [
-        "👋 Hello! Welcome to *Ibtisama Clinic*! How can I assist you today?",
-        "Hi there! 😊 How can I help you book an appointment or learn more about our services?",
-        "Welcome to Ibtisama Medical Clinic! How can I support you today?",
-        "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
-        "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
-        "Good day! 💚 How can I assist you with your dental or beauty needs today?",
-        "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
-        "👋 Hello there! Would you like to see our latest offers or book an appointment?",
-        "Welcome! 🌸 How can I help you take care of your smile today?",
-        "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
+      const greetingsEn = [
+        `👋 Hello! Welcome to *${settings.clinic_name}*!`,
+        `Hi 😊 You’ve reached *${settings.clinic_name}*. How can I help?`,
       ];
-      const arabicGreetings = [
-        "👋 أهلاً وسهلاً في *عيادة ابتسامة الطبية*! كيف يمكنني مساعدتك اليوم؟",
-        "مرحباً بك في عيادتنا 💚 هل ترغب بحجز موعد أو الاستفسار عن خدمة؟",
-        "أهلاً بك 👋 يسعدنا تواصلك مع *عيادة ابتسامة*، كيف نقدر نخدمك اليوم؟",
-        "🌸 حيّاك الله! وش أكثر خدمة حاب تستفسر عنها اليوم؟",
-        "✨ أهلاً وسهلاً! هل ترغب بالتعرف على عروضنا أو حجز موعد؟",
-        "💚 يسعدنا تواصلك مع *عيادة ابتسامة*! كيف ممكن نساعدك اليوم؟",
-        "😊 مرحباً بك! تقدر تسأل عن أي خدمة أو عرض متوفر حالياً.",
-        "👋 أهلين وسهلين فيك! وش الخدمة اللي حاب تعرف عنها أكثر؟",
-        "🌷 يا مرحبا! كيف نقدر نساعدك اليوم في *عيادة ابتسامة*؟",
-        "💬 أهلاً بك! هل ترغب بحجز موعد أو الاطلاع على عروضنا الحالية؟",
+      const greetingsAr = [
+        `👋 أهلاً وسهلاً في *${settings.clinic_name}*!`,
+        `مرحباً بك في *${settings.clinic_name}* 💚 كيف نساعدك؟`,
       ];
-      const listToPickFrom = isEnglish ? englishGreetings : arabicGreetings;
-      return listToPickFrom[randomIndex(listToPickFrom.length)];
+      return isEnglish ? pickRandom(greetingsEn) : pickRandom(greetingsAr);
     }
 
     case "schedule":
       return isEnglish
-        ? "🕒 Our clinic hours are from *9 AM to 9 PM*, Saturday to Thursday. We’re closed on Fridays."
-        : "🕒 مواعيد العمل: يومياً من *9 صباحاً إلى 9 مساءً* (الجمعة مغلق).";
+        ? `🕒 ${settings.working_hours_en}`
+        : `🕒 ${settings.working_hours_ar}`;
 
     case "price":
-      return isEnglish
-        ? "💰 The consultation fee is *150 SAR*, including full check-up and medical advice."
-        : "💰 تكلفة الكشف هي *150 ريال* وتشمل الاستشارة والفحص الكامل.";
+      return isEnglish ? `💰 ${settings.price_en}` : `💰 ${settings.price_ar}`;
 
     case "location":
       return isEnglish
-        ? "📍 Our clinic is located in *Amman – Abdoun, behind Housing Bank, 1st Floor*.\nGoogle Maps: https://maps.google.com"
-        : "📍 موقع العيادة: *عمّان – عبدون، خلف بنك الإسكان، الطابق الأول*.\nGoogle Maps: https://maps.google.com";
-
-    case "thanks":
-      return isEnglish
-        ? pickRandom([
-            "You're most welcome! 😊",
-            "Happy to help! 💚",
-            "Glad to assist — have a great day!",
-          ])
-        : pickRandom([
-            "🙏 العفو! نتمنى لك يوماً جميلاً وصحة دائمة 💚",
-            "🌿 على الرحب والسعة! نحن هنا دائماً لخدمتك.",
-            "😊 شكراً لتواصلك معنا، ونتمنى لك يوماً طيباً.",
-          ]);
+        ? `📍 ${settings.location_en}`
+        : `📍 ${settings.location_ar}`;
 
     case "booking":
       return isEnglish
-        ? "📅 Great! Let's book your appointment. Please tell me your preferred time (e.g., 3 PM, 6 PM, or 9 PM)."
-        : "📅 رائع! لنبدأ بالحجز، من فضلك اختر الوقت الذي يناسبك (مثلاً: 3 مساءً، 6 مساءً، أو 9 مساءً).";
+        ? `📅 Please choose a time: ${settings.booking_times.join(", ")}`
+        : `📅 اختر الوقت المناسب: ${settings.booking_times.join("، ")}`;
 
     case "doctor":
       return isEnglish
-        ? "👨‍⚕️ We have a team of specialists in dermatology, dentistry, and cosmetic treatments. Which type of doctor are you looking for?"
-        : "👨‍⚕️ لدينا أطباء مختصون في الجلدية، الأسنان، والعلاجات التجميلية. أي تخصص ترغب بمعرفته؟";
+        ? "👨‍⚕️ We have qualified specialists in dentistry and cosmetic treatments."
+        : "👨‍⚕️ لدينا أطباء مختصون في الأسنان والعلاجات التجميلية.";
 
     case "offers":
+      if (!settings.offers_enabled) {
+        return isEnglish
+          ? "Currently there are no offers."
+          : "لا توجد عروض حالياً.";
+      }
+      return isEnglish ? settings.offers_en : settings.offers_ar;
+
+    case "thanks":
       return isEnglish
-        ? "🎉 Yes! We currently have special offers on first-time consultations and cosmetic treatments!"
-        : "🎉 نعم، لدينا عروض مميزة حالياً على الكشف الأول والعلاجات التجميلية!";
+        ? pickRandom(["You're welcome 😊", "Happy to help 💚"])
+        : pickRandom(["على الرحب والسعة 💚", "يسعدنا خدمتك 😊"]);
 
     default:
-      // ✅ البحث في الأسئلة المتكررة
       for (const faq of faqs) {
         if (faq.q.some((w) => lower.includes(w))) {
           return faq.a;
         }
       }
 
-      // ✅ الرد الافتراضي
       return isEnglish
-        ? `🤖 I received your message: “${text}”\n\nYou can ask me about *appointments 🕒, prices 💰, location 📍,* or *booking 📅*.`
-        : `🤖 استلمت رسالتك: “${text}”\n\nيمكنك سؤالي عن: *المواعيد 🕒، الأسعار 💰، الموقع 📍، أو الحجز 📅*.`;
+        ? "🤖 You can ask about appointments, prices, location, or offers."
+        : "🤖 يمكنك السؤال عن المواعيد، الأسعار، الموقع، أو العروض.";
   }
 }
 

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>إعدادات العيادة</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      .settings-card {
+        max-width: 700px;
+        margin: 40px auto;
+        background: var(--card-bg, #fff);
+        padding: 30px;
+        border-radius: 12px;
+      }
+
+      .settings-card input,
+      .settings-card textarea {
+        width: 100%;
+        padding: 10px;
+        margin: 6px 0 16px;
+      }
+
+      .settings-card button {
+        background: #7c3aed;
+        color: #fff;
+        border: none;
+        padding: 12px 24px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="settings-card">
+      <h2><i class="fa-solid fa-gear"></i> إعدادات العيادة</h2>
+
+      <label>اسم العيادة</label>
+      <input id="clinic_name" />
+
+      <label>أوقات العمل (عربي)</label>
+      <input id="working_hours_ar" />
+
+      <label>Working Hours (EN)</label>
+      <input id="working_hours_en" />
+
+      <label>السعر (عربي)</label>
+      <input id="price_ar" />
+
+      <label>Price (EN)</label>
+      <input id="price_en" />
+
+      <label>الموقع (عربي)</label>
+      <input id="location_ar" />
+
+      <label>Location (EN)</label>
+      <input id="location_en" />
+
+      <label>أوقات الحجز (افصل بفاصلة)</label>
+      <input id="booking_times" placeholder="3 PM, 6 PM, 9 PM" />
+
+      <label>
+        <input type="checkbox" id="offers_enabled" />
+        تفعيل العروض
+      </label>
+
+      <label>نص العرض (عربي)</label>
+      <textarea id="offers_ar"></textarea>
+
+      <label>Offer Text (EN)</label>
+      <textarea id="offers_en"></textarea>
+
+      <button onclick="saveSettings()">💾 حفظ الإعدادات</button>
+    </div>
+
+    <script>
+      const supabase = window.supabase.createClient(
+        "https://ylsbmxedhycjqaorjkvm.supabase.co",
+        "YOUR_ANON_KEY_HERE",
+      );
+
+      async function loadSettings() {
+        const { data } = await supabase
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        clinic_name.value = data.clinic_name;
+        working_hours_ar.value = data.working_hours_ar;
+        working_hours_en.value = data.working_hours_en;
+        price_ar.value = data.price_ar;
+        price_en.value = data.price_en;
+        location_ar.value = data.location_ar;
+        location_en.value = data.location_en;
+        booking_times.value = data.booking_times.join(", ");
+        offers_enabled.checked = data.offers_enabled;
+        offers_ar.value = data.offers_ar;
+        offers_en.value = data.offers_en;
+      }
+
+      async function saveSettings() {
+        const payload = {
+          clinic_name: clinic_name.value,
+          working_hours_ar: working_hours_ar.value,
+          working_hours_en: working_hours_en.value,
+          price_ar: price_ar.value,
+          price_en: price_en.value,
+          location_ar: location_ar.value,
+          location_en: location_en.value,
+          booking_times: booking_times.value.split(",").map((t) => t.trim()),
+          offers_enabled: offers_enabled.checked,
+          offers_ar: offers_ar.value,
+          offers_en: offers_en.value,
+        };
+
+        await supabase
+          .from("clinic_settings")
+          .update(payload)
+          .eq("clinic_id", "default");
+
+        alert("✅ تم حفظ الإعدادات");
+      }
+
+      loadSettings();
+    </script>
+  </body>
+</html>
