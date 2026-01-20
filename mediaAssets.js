@@ -40,16 +40,16 @@ const DOCTOR_IMAGES = [
 // Doctor information corresponding to each image
 const DOCTOR_INFO = [
   {
-    name: "د. أحمد الخطيب",
-    specialization: "تقويم الأسنان",
+    name: "د. دلال محمد العجمي",
+    specialization: "طبيب أسنان عام",
   },
   {
-    name: "د. سارة محمود",
-    specialization: "تجميل الأسنان",
+    name: "د. عبدالله سعيد الأسمري",
+    specialization: "ستشاري تقويم الأسنان والوجه والفكين",
   },
   {
-    name: "د. خالد العمري",
-    specialization: "طب الأسنان العام",
+    name: "د. حمد أحمد الحازمي",
+    specialization: "استشاري تقويم الأسنان والوجه والفكين",
   },
 ];
 
