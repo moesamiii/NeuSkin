@@ -17,7 +17,7 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 // ✅ Target recipient and message
-const to = "962772741757"; // international format, no '+'
+const to = "962785050875"; // international format, no '+'
 const message =
   "مرحبًا 👋 اليوم لدينا عروض خاصة! 🎉 خصومات حصرية لفترة محدودة 💥";
 
@@ -28,7 +28,7 @@ async function sendMessage() {
   try {
     if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
       throw new Error(
-        "❌ Missing WHATSAPP_TOKEN or PHONE_NUMBER_ID. Check environment variables."
+        "❌ Missing WHATSAPP_TOKEN or PHONE_NUMBER_ID. Check environment variables.",
       );
     }
 
