@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
@@ -217,7 +217,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html">
@@ -252,6 +252,11 @@
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             الحملات الاعلانية
+          </a>
+
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
           </a>
         </nav>
       </aside>
@@ -309,7 +314,7 @@
           <div id="notificationsList"></div>
         </div>
 
-        <footer>© 2025 Smile Clinic</footer>
+        <footer id="footerText">© 2025 Clinic</footer>
       </main>
     </div>
 
@@ -319,8 +324,52 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
-        SUPABASE_KEY
+        SUPABASE_KEY,
       );
+
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        // Update page title
+        document.title = "التنبيهات - " + clinicName + " Dashboard";
+      }
 
       // 🔐 AUTH GUARD (RUN ON PAGE LOAD)
       if (localStorage.getItem("clinic_logged_in") !== "true") {
@@ -352,6 +401,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          loadClinicSettings(); // ✅ Load settings after login
           loadNotifications();
         } else {
           const msg = document.getElementById("errorMsg");
@@ -369,6 +419,7 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
+        loadClinicSettings(); // ✅ Load clinic settings on startup
         loadNotifications();
         setInterval(loadNotifications, 30000);
       }
@@ -475,7 +526,7 @@
             (b) =>
               (b.name && b.name.toLowerCase().includes(searchTerm)) ||
               (b.service && b.service.toLowerCase().includes(searchTerm)) ||
-              (b.phone && b.phone.includes(searchTerm))
+              (b.phone && b.phone.includes(searchTerm)),
           );
         }
 
