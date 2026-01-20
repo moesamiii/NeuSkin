@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>قائمة التواصل - Smile Clinic</title>
+    <title>قائمة التواصل - Clinic</title>
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
     <link
       rel="stylesheet"
@@ -730,7 +730,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html">
@@ -762,6 +762,10 @@
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             الحملات الاعلانية
+          </a>
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
           </a>
         </nav>
       </aside>
@@ -924,7 +928,7 @@
           </div>
         </section>
 
-        <footer>© 2025 Smile Clinic</footer>
+        <footer id="footerText">© 2025 Clinic</footer>
       </main>
     </div>
 
@@ -1007,12 +1011,56 @@
         SUPABASE_KEY,
       );
 
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
+
       let contacts = [];
       let existingPhones = new Set();
 
       // ✅ NEW: Variables for groups feature
       let contactGroups = [];
       let currentGroup = "all";
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        // Update page title
+        document.title = "قائمة التواصل - " + clinicName;
+      }
 
       // ========== ✨ NEW: PHONE NUMBER COUNTRY CODE FIX FUNCTION ========== //
       /**
@@ -1760,7 +1808,8 @@
         .getElementById("addContactBtn")
         .addEventListener("click", addContact);
 
-      // ✅ Initial load + auto refresh
+      // ✅ Initial load - load settings first, then groups and contacts
+      loadClinicSettings();
       loadGroups(); // Load groups first
       loadContacts();
       setInterval(loadContacts, 20000);
