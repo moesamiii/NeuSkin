@@ -70,7 +70,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html" class="active">
@@ -126,7 +126,7 @@
             <button class="menu-toggle icon-btn" id="menuToggle">
               <i class="fa-solid fa-bars"></i>
             </button>
-            <h1>CONAN DASHBOARD</h1>
+            <h1 id="headerClinicName">CLINIC DASHBOARD</h1>
           </div>
           <div class="header-right">
             <button class="icon-btn" id="themeToggle">
@@ -182,15 +182,15 @@
             "
           >
             <div>
-              <h3 style="margin-top: 0; font-size: 24px">
-                لوحة تحكم عيادة سمايلز
+              <h3 id="heroClinicTitle" style="margin-top: 0; font-size: 24px">
+                لوحة تحكم العيادة
               </h3>
               <p style="line-height: 1.6; margin-bottom: 24px; font-size: 16px">
                 مرحبًا بكم في النظام الذكي لإدارة العيادة. من هنا يمكنكم متابعة
                 المواعيد، عرض أسماء الحجوزات، وإدارة سير العمل بسهولة ودقة.
               </p>
             </div>
-            <a
+            
               href="booking.html"
               style="text-align: center; text-decoration: none"
             >
@@ -295,7 +295,7 @@
           </div>
         </section>
 
-        <footer>© 2025 Smile Clinic</footer>
+        <footer id="footerText">© 2025 Clinic</footer>
       </main>
     </div>
 
@@ -308,6 +308,61 @@
         SUPABASE_URL,
         SUPABASE_KEY,
       );
+
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the dashboard UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent = clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update header title
+        const headerClinicName = document.getElementById("headerClinicName");
+        if (headerClinicName) {
+          headerClinicName.textContent = clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update hero card title
+        const heroClinicTitle = document.getElementById("heroClinicTitle");
+        if (heroClinicTitle) {
+          heroClinicTitle.textContent = "لوحة تحكم " + clinicName;
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        // Update page title
+        document.title = clinicName + " Dashboard";
+      }
 
       async function login() {
         console.log("CHECK 1 ✅ login() is running");
@@ -325,6 +380,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          loadClinicSettings(); // ✅ Load settings after login
           load();
         } else {
           const msg = document.getElementById("errorMsg");
@@ -519,7 +575,9 @@
         }
       });
 
+      // ✅ Load settings and data on startup if already logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
+        loadClinicSettings(); // ✅ Load clinic settings
         load();
         setInterval(load, 15000);
       }
