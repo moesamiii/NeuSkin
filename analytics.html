@@ -1,29 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard - Analytics</title>
-
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <link rel="stylesheet" href="./dashboard.css" />
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
     <style>
       .analytics-container {
         padding: 20px;
       }
-
       /* Stats Cards Row */
       .stats-row {
         display: grid;
@@ -31,7 +26,6 @@
         gap: 20px;
         margin-bottom: 30px;
       }
-
       .stat-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 16px;
@@ -39,14 +33,14 @@
         color: white;
         position: relative;
         overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
       }
-
       .stat-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
       }
-
       .stat-card::before {
         content: "";
         position: absolute;
@@ -57,31 +51,24 @@
         background: rgba(255, 255, 255, 0.1);
         border-radius: 50%;
       }
-
       .stat-card.purple {
         background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
       }
-
       .stat-card.pink {
         background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
       }
-
       .stat-card.blue {
         background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
       }
-
       .stat-card.green {
         background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
       }
-
       .stat-card.orange {
         background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
       }
-
       .stat-card.red {
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       }
-
       .stat-card .icon {
         font-size: 40px;
         opacity: 0.3;
@@ -89,24 +76,20 @@
         top: 20px;
         left: 20px;
       }
-
       .stat-card .content {
         position: relative;
         z-index: 1;
         text-align: left;
       }
-
       .stat-card .number {
         font-size: 36px;
         font-weight: bold;
         margin-bottom: 5px;
       }
-
       .stat-card .label {
         font-size: 14px;
         opacity: 0.9;
       }
-
       .stat-card .change {
         display: inline-flex;
         align-items: center;
@@ -117,15 +100,12 @@
         border-radius: 20px;
         font-size: 12px;
       }
-
       .stat-card .change.up {
         color: #bbf7d0;
       }
-
       .stat-card .change.down {
         color: #fecaca;
       }
-
       /* Charts Grid */
       .charts-grid {
         display: grid;
@@ -133,7 +113,6 @@
         gap: 20px;
         margin-bottom: 30px;
       }
-
       .chart-card {
         background: var(--card-bg, #fff);
         border-radius: 16px;
@@ -141,19 +120,15 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         transition: all 0.3s ease;
       }
-
       .chart-card:hover {
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
       }
-
       body.dark .chart-card {
         background: #2a2a2a;
       }
-
       .chart-card.full-width {
         grid-column: span 2;
       }
-
       .chart-card h3 {
         margin: 0 0 20px 0;
         font-size: 18px;
@@ -162,28 +137,22 @@
         align-items: center;
         gap: 10px;
       }
-
       .chart-card h3 i {
         color: #d946ef;
       }
-
       body.dark .chart-card h3 {
         color: #f3f4f6;
       }
-
       .chart-container {
         position: relative;
         height: 300px;
       }
-
       .chart-container.small {
         height: 250px;
       }
-
       .chart-container.large {
         height: 400px;
       }
-
       /* Report Section */
       .report-section {
         display: flex;
@@ -193,7 +162,6 @@
         flex-wrap: wrap;
         gap: 15px;
       }
-
       .report-title {
         font-size: 24px;
         font-weight: bold;
@@ -202,21 +170,17 @@
         align-items: center;
         gap: 10px;
       }
-
       .report-title i {
         color: #d946ef;
       }
-
       body.dark .report-title {
         color: #f3f4f6;
       }
-
       .report-actions {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
       }
-
       .download-report-btn {
         display: inline-flex;
         align-items: center;
@@ -232,30 +196,24 @@
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
       }
-
       .download-report-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(217, 70, 239, 0.4);
       }
-
       .download-report-btn.secondary {
         background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
         box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
       }
-
       .download-report-btn.secondary:hover {
         box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
       }
-
       .download-report-btn.loading {
         opacity: 0.7;
         cursor: not-allowed;
       }
-
       .download-report-btn.loading i {
         animation: spin 1s linear infinite;
       }
-
       @keyframes spin {
         from {
           transform: rotate(0deg);
@@ -264,7 +222,6 @@
           transform: rotate(360deg);
         }
       }
-
       /* Date Filter */
       .date-filter {
         display: flex;
@@ -272,7 +229,6 @@
         align-items: center;
         flex-wrap: wrap;
       }
-
       .date-filter select,
       .date-filter input {
         padding: 10px 16px;
@@ -282,21 +238,18 @@
         background: white;
         cursor: pointer;
       }
-
       body.dark .date-filter select,
       body.dark .date-filter input {
         background: #374151;
         border-color: #4b5563;
         color: white;
       }
-
       /* Top Items List */
       .top-list {
         list-style: none;
         padding: 0;
         margin: 0;
       }
-
       .top-list li {
         display: flex;
         justify-content: space-between;
@@ -304,15 +257,12 @@
         padding: 12px 0;
         border-bottom: 1px solid #e5e7eb;
       }
-
       body.dark .top-list li {
         border-color: #374151;
       }
-
       .top-list li:last-child {
         border-bottom: none;
       }
-
       .top-list .rank {
         width: 30px;
         height: 30px;
@@ -325,107 +275,85 @@
         font-weight: bold;
         font-size: 14px;
       }
-
       .top-list .rank.gold {
         background: linear-gradient(135deg, #f59e0b, #eab308);
       }
-
       .top-list .rank.silver {
         background: linear-gradient(135deg, #9ca3af, #6b7280);
       }
-
       .top-list .rank.bronze {
         background: linear-gradient(135deg, #f97316, #ea580c);
       }
-
       .top-list .info {
         flex: 1;
         margin: 0 15px;
       }
-
       .top-list .name {
         font-weight: 600;
         color: #374151;
       }
-
       body.dark .top-list .name {
         color: #f3f4f6;
       }
-
       .top-list .details {
         font-size: 12px;
         color: #9ca3af;
       }
-
       .top-list .value {
         font-weight: bold;
         color: #d946ef;
         font-size: 18px;
       }
-
       /* Progress Bars */
       .progress-item {
         margin-bottom: 15px;
       }
-
       .progress-header {
         display: flex;
         justify-content: space-between;
         margin-bottom: 8px;
       }
-
       .progress-label {
         font-size: 14px;
         color: #374151;
       }
-
       body.dark .progress-label {
         color: #f3f4f6;
       }
-
       .progress-value {
         font-size: 14px;
         font-weight: bold;
         color: #d946ef;
       }
-
       .progress-bar {
         height: 10px;
         background: #e5e7eb;
         border-radius: 10px;
         overflow: hidden;
       }
-
       body.dark .progress-bar {
         background: #374151;
       }
-
       .progress-fill {
         height: 100%;
         border-radius: 10px;
         transition: width 0.5s ease;
       }
-
       .progress-fill.purple {
         background: linear-gradient(90deg, #d946ef, #a855f7);
       }
-
       .progress-fill.blue {
         background: linear-gradient(90deg, #3b82f6, #06b6d4);
       }
-
       .progress-fill.green {
         background: linear-gradient(90deg, #22c55e, #10b981);
       }
-
       .progress-fill.orange {
         background: linear-gradient(90deg, #f97316, #eab308);
       }
-
       .progress-fill.pink {
         background: linear-gradient(90deg, #ec4899, #f43f5e);
       }
-
       /* Insights Card */
       .insights-grid {
         display: grid;
@@ -433,7 +361,6 @@
         gap: 20px;
         margin-bottom: 30px;
       }
-
       .insight-card {
         background: var(--card-bg, #fff);
         border-radius: 16px;
@@ -441,23 +368,18 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         border-right: 4px solid #d946ef;
       }
-
       body.dark .insight-card {
         background: #2a2a2a;
       }
-
       .insight-card.warning {
         border-color: #f59e0b;
       }
-
       .insight-card.success {
         border-color: #22c55e;
       }
-
       .insight-card.danger {
         border-color: #ef4444;
       }
-
       .insight-card h4 {
         margin: 0 0 10px 0;
         font-size: 16px;
@@ -466,22 +388,18 @@
         align-items: center;
         gap: 8px;
       }
-
       body.dark .insight-card h4 {
         color: #f3f4f6;
       }
-
       .insight-card p {
         margin: 0;
         font-size: 14px;
         color: #6b7280;
         line-height: 1.6;
       }
-
       body.dark .insight-card p {
         color: #9ca3af;
       }
-
       /* Toast */
       .toast {
         position: fixed;
@@ -498,46 +416,37 @@
         transition: all 0.3s ease;
         z-index: 9999;
       }
-
       .toast.show {
         transform: translateX(-50%) translateY(0);
         opacity: 1;
       }
-
       .toast.error {
         background: #ef4444;
       }
-
       /* Responsive */
       @media (max-width: 1024px) {
         .charts-grid {
           grid-template-columns: 1fr;
         }
-
         .chart-card.full-width {
           grid-column: span 1;
         }
       }
-
       @media (max-width: 768px) {
         .stats-row {
           grid-template-columns: repeat(2, 1fr);
         }
-
         .report-section {
           flex-direction: column;
           align-items: stretch;
         }
-
         .report-actions {
           justify-content: center;
         }
-
         .date-filter {
           justify-content: center;
         }
       }
-
       @media (max-width: 480px) {
         .stats-row {
           grid-template-columns: 1fr;
@@ -545,25 +454,22 @@
       }
     </style>
   </head>
-
   <body>
     <div class="container">
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html">
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
           <a href="notifications.html" id="notificationLink">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
-
           <a href="analytics.html" class="active">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
@@ -572,24 +478,24 @@
             <i class="fa-solid fa-table"></i>
             جدول التواصل
           </a>
-
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
-
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             الحملات الاعلانية
           </a>
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
+          </a>
         </nav>
       </aside>
-
       <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent">
         <header class="header">
@@ -605,7 +511,6 @@
             </button>
           </div>
         </header>
-
         <div class="analytics-container">
           <!-- Report Header -->
           <section class="report-section">
@@ -640,7 +545,6 @@
               </button>
             </div>
           </section>
-
           <!-- Stats Cards -->
           <section class="stats-row">
             <div class="stat-card purple">
@@ -654,7 +558,6 @@
                 </div>
               </div>
             </div>
-
             <div class="stat-card blue">
               <i class="fa-solid fa-users icon"></i>
               <div class="content">
@@ -666,7 +569,6 @@
                 </div>
               </div>
             </div>
-
             <div class="stat-card green">
               <i class="fa-solid fa-check-circle icon"></i>
               <div class="content">
@@ -678,7 +580,6 @@
                 </div>
               </div>
             </div>
-
             <div class="stat-card orange">
               <i class="fa-solid fa-clock icon"></i>
               <div class="content">
@@ -690,7 +591,6 @@
                 </div>
               </div>
             </div>
-
             <div class="stat-card red">
               <i class="fa-solid fa-times-circle icon"></i>
               <div class="content">
@@ -702,7 +602,6 @@
                 </div>
               </div>
             </div>
-
             <div class="stat-card pink">
               <i class="fa-solid fa-percent icon"></i>
               <div class="content">
@@ -715,7 +614,6 @@
               </div>
             </div>
           </section>
-
           <!-- AI Insights -->
           <section class="insights-grid">
             <div class="insight-card success" id="insight1">
@@ -731,7 +629,6 @@
               <p>جاري تحليل البيانات...</p>
             </div>
           </section>
-
           <!-- Charts Row 1 -->
           <section class="charts-grid">
             <!-- 1. Bookings Trend Line Chart -->
@@ -743,7 +640,6 @@
                 <canvas id="trendChart"></canvas>
               </div>
             </div>
-
             <!-- 2. Services Distribution Bar Chart -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-chart-bar"></i> توزيع الخدمات</h3>
@@ -751,7 +647,6 @@
                 <canvas id="servicesBarChart"></canvas>
               </div>
             </div>
-
             <!-- 3. Booking Status Pie Chart -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-chart-pie"></i> حالة الحجوزات</h3>
@@ -759,7 +654,6 @@
                 <canvas id="statusPieChart"></canvas>
               </div>
             </div>
-
             <!-- 4. Weekly Distribution -->
             <div class="chart-card">
               <h3>
@@ -769,7 +663,6 @@
                 <canvas id="weeklyChart"></canvas>
               </div>
             </div>
-
             <!-- 5. Hourly Distribution -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-clock"></i> التوزيع حسب الساعة</h3>
@@ -777,7 +670,6 @@
                 <canvas id="hourlyChart"></canvas>
               </div>
             </div>
-
             <!-- 6. Monthly Comparison -->
             <div class="chart-card full-width">
               <h3><i class="fa-solid fa-calendar-alt"></i> المقارنة الشهرية</h3>
@@ -785,7 +677,6 @@
                 <canvas id="monthlyChart"></canvas>
               </div>
             </div>
-
             <!-- 7. Top Services Ranking -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-trophy"></i> أفضل الخدمات</h3>
@@ -793,7 +684,6 @@
                 <li>جاري التحميل...</li>
               </ul>
             </div>
-
             <!-- 8. Service Performance Progress -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-tasks"></i> أداء الخدمات</h3>
@@ -801,7 +691,6 @@
                 <p>جاري التحميل...</p>
               </div>
             </div>
-
             <!-- 9. Customer Retention Doughnut -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-user-check"></i> احتفاظ العملاء</h3>
@@ -809,7 +698,6 @@
                 <canvas id="retentionChart"></canvas>
               </div>
             </div>
-
             <!-- 10. Booking Sources -->
             <div class="chart-card">
               <h3><i class="fa-solid fa-share-nodes"></i> مصادر الحجز</h3>
@@ -819,14 +707,11 @@
             </div>
           </section>
         </div>
-
-        <footer>© 2025 Smile Clinic - Powered by CONAN AI</footer>
+        <footer id="footerText">© 2025 Clinic - Powered by AI</footer>
       </main>
     </div>
-
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
-
     <script>
       // Supabase Setup
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
@@ -834,12 +719,56 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
-        SUPABASE_KEY
+        SUPABASE_KEY,
       );
+
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
 
       // Chart instances
       let charts = {};
       let allData = [];
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName} - Powered by AI`;
+        }
+
+        // Update page title
+        document.title = clinicName + " - Analytics";
+      }
 
       // Show toast notification
       function showToast(message, isError = false) {
@@ -883,10 +812,10 @@
       function updateStats() {
         const total = allData.length;
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل"
+          (b) => b.status === "Completed" || b.status === "مكتمل",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي"
+          (b) => b.status === "Canceled" || b.status === "ملغي",
         ).length;
         const pending = total - completed - cancelled;
 
@@ -915,7 +844,6 @@
           "cancelledChange",
           "conversionChange",
         ];
-
         ids.forEach((id, i) => {
           const el = document.getElementById(id);
           const val = changes[i];
@@ -1039,10 +967,10 @@
         if (charts.statusPie) charts.statusPie.destroy();
 
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل"
+          (b) => b.status === "Completed" || b.status === "مكتمل",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي"
+          (b) => b.status === "Canceled" || b.status === "ملغي",
         ).length;
         const pending = allData.length - completed - cancelled;
 
@@ -1084,7 +1012,6 @@
           "السبت",
         ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
-
         allData.forEach((b) => {
           if (b.time) {
             const day = new Date(b.time).getDay();
@@ -1224,10 +1151,10 @@
         });
 
         const newCustomers = Object.values(phoneCounts).filter(
-          (c) => c === 1
+          (c) => c === 1,
         ).length;
         const returningCustomers = Object.values(phoneCounts).filter(
-          (c) => c > 1
+          (c) => c > 1,
         ).length;
 
         charts.retention = new Chart(ctx, {
@@ -1294,10 +1221,10 @@
       function updateInsights() {
         const total = allData.length;
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل"
+          (b) => b.status === "Completed" || b.status === "مكتمل",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي"
+          (b) => b.status === "Canceled" || b.status === "ملغي",
         ).length;
 
         // Most popular service
@@ -1306,7 +1233,7 @@
           serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
         });
         const topService = Object.entries(serviceCount).sort(
-          (a, b) => b[1] - a[1]
+          (a, b) => b[1] - a[1],
         )[0];
 
         // Busiest day
@@ -1333,8 +1260,8 @@
           <p>الخدمة الأكثر طلباً هي <strong>${
             topService ? topService[0] : "غير محدد"
           }</strong> بعدد <strong>${
-          topService ? topService[1] : 0
-        }</strong> حجز. ننصح بزيادة الترويج لهذه الخدمة!</p>
+            topService ? topService[1] : 0
+          }</strong> حجز. ننصح بزيادة الترويج لهذه الخدمة!</p>
         `;
 
         document.getElementById("insight2").innerHTML = `
@@ -1342,10 +1269,10 @@
           <p>نسبة الإلغاء الحالية <strong>${
             total > 0 ? ((cancelled / total) * 100).toFixed(1) : 0
           }%</strong>. ${
-          cancelled > total * 0.1
-            ? "يُنصح بمراجعة أسباب الإلغاء وتحسين تجربة العملاء."
-            : "النسبة جيدة، استمروا!"
-        }</p>
+            cancelled > total * 0.1
+              ? "يُنصح بمراجعة أسباب الإلغاء وتحسين تجربة العملاء."
+              : "النسبة جيدة، استمروا!"
+          }</p>
         `;
 
         document.getElementById("insight3").innerHTML = `
@@ -1377,12 +1304,12 @@
             <div class="info">
               <div class="name">${item[0]}</div>
               <div class="details">${((item[1] / allData.length) * 100).toFixed(
-                1
+                1,
               )}% من الحجوزات</div>
             </div>
             <span class="value">${item[1]}</span>
           </li>
-        `
+        `,
             )
             .join("") || "<li>لا توجد بيانات</li>";
       }
@@ -1414,15 +1341,14 @@
               }" style="width: ${(item[1] / maxCount) * 100}%"></div>
             </div>
           </div>
-        `
+        `,
             )
             .join("") || "<p>لا توجد بيانات</p>";
       }
 
-      // Generate PDF Report
+      // ✅ Generate PDF Report (now uses dynamic clinic name)
       async function generateReport() {
         const btn = document.getElementById("downloadReportBtn");
-
         if (allData.length === 0) {
           showToast("لا توجد بيانات لإنشاء التقرير", true);
           return;
@@ -1434,10 +1360,12 @@
         try {
           const { jsPDF } = window.jspdf;
           const doc = new jsPDF("p", "mm", "a4");
-
           const pageWidth = doc.internal.pageSize.getWidth();
           const margin = 20;
           let yPos = margin;
+
+          // ✅ Use dynamic clinic name from settings
+          const clinicName = clinicSettings?.clinic_name || "Clinic";
 
           // Header
           doc.setFillColor(217, 70, 239);
@@ -1446,7 +1374,7 @@
           doc.setTextColor(255, 255, 255);
           doc.setFontSize(24);
           doc.setFont("helvetica", "bold");
-          doc.text("Smile Clinic - Analytics Report", pageWidth / 2, 20, {
+          doc.text(clinicName + " - Analytics Report", pageWidth / 2, 20, {
             align: "center",
           });
 
@@ -1455,7 +1383,7 @@
             "Generated: " + new Date().toLocaleDateString("en-US"),
             pageWidth / 2,
             32,
-            { align: "center" }
+            { align: "center" },
           );
 
           yPos = 55;
@@ -1463,10 +1391,10 @@
           // Stats Summary
           const total = allData.length;
           const completed = allData.filter(
-            (b) => b.status === "Completed" || b.status === "مكتمل"
+            (b) => b.status === "Completed" || b.status === "مكتمل",
           ).length;
           const cancelled = allData.filter(
-            (b) => b.status === "Canceled" || b.status === "ملغي"
+            (b) => b.status === "Canceled" || b.status === "ملغي",
           ).length;
           const uniqueCustomers = new Set(allData.map((b) => b.phone)).size;
 
@@ -1514,12 +1442,14 @@
             headStyles: { fillColor: [168, 85, 247] },
           });
 
-          // Save
+          // ✅ Save with dynamic clinic name
           doc.save(
-            "Smile_Clinic_Report_" +
+            clinicName.replace(/\s+/g, "_") +
+              "_Report_" +
               new Date().toISOString().split("T")[0] +
-              ".pdf"
+              ".pdf",
           );
+
           showToast("تم تحميل التقرير بنجاح!");
         } catch (error) {
           console.error(error);
@@ -1553,13 +1483,14 @@
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
+        sidebar.classList.toggle("active"),
       );
 
       // Date range filter
       document.getElementById("dateRange").addEventListener("change", loadData);
 
-      // Initial load
+      // ✅ Initial load - load settings first, then data
+      loadClinicSettings();
       loadData();
       setInterval(loadData, 30000);
     </script>
