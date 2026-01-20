@@ -12,7 +12,6 @@
     />
     <link rel="stylesheet" href="./dashboard.css" />
 
-    <!-- ✅ SAME STYLE FROM AIsettings.html -->
     <style>
       .settings-container {
         padding: 30px;
@@ -122,7 +121,6 @@
         color: #aaa;
       }
 
-      /* Small helper text */
       .hint {
         font-size: 13px;
         color: #888;
@@ -152,7 +150,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html">
@@ -190,10 +188,14 @@
             الحملات الاعلانية
           </a>
 
-          <!-- ✅ NEW TAB -->
           <a href="messageTiming.html" class="active">
             <i class="fa-solid fa-clock"></i>
             التوقيت بين الرسائل
+          </a>
+
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
           </a>
         </nav>
       </aside>
@@ -292,21 +294,59 @@
           </button>
         </section>
 
-        <footer>© 2025 Smile Clinic</footer>
+        <footer id="footerText">© 2025 Clinic</footer>
       </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ===== LOGIN LOGIC =====
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-
       const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_KEY,
       );
+
+      let clinicSettings = null;
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        document.title = "إعدادات التوقيت بين الرسائل - " + clinicName;
+      }
 
       async function login() {
         const email = document.getElementById("email")?.value?.trim() || "";
@@ -324,6 +364,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          loadClinicSettings();
         } else {
           document.getElementById("errorMsg").style.display = "block";
         }
@@ -338,6 +379,7 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
+        loadClinicSettings();
       }
 
       // ===== THEME TOGGLE =====
@@ -396,19 +438,15 @@
         msgDelayMin: 6,
         msgDelayMax: 28,
         msgDelayMode: "random",
-
         typingEnabled: true,
         charsPerSecondMin: 3.2,
         charsPerSecondMax: 6.0,
         typingMaxExtraSec: 40,
-
         jitterSec: 2.5,
-
         cooldownEnabled: true,
         cooldownEvery: 12,
         cooldownMinSec: 45,
         cooldownMaxSec: 160,
-
         sentCounterKey: "msgDelay_sentCounter",
       };
 
@@ -466,7 +504,7 @@
           localStorage.setItem("msgDelayMax", String(finalMax));
           localStorage.setItem("msgDelayMode", msgDelayMode?.value || "random");
 
-          // advanced defaults saved too
+          // Save advanced defaults
           localStorage.setItem(
             "msgDelay_typingEnabled",
             String(DEFAULTS.typingEnabled),
@@ -522,7 +560,6 @@
         if (!enabled) return 0;
 
         const mode = lsGet("msgDelayMode", DEFAULTS.msgDelayMode);
-
         const baseMin = Math.max(
           0,
           lsGetNum("msgDelayMin", DEFAULTS.msgDelayMin),
@@ -550,16 +587,13 @@
             DEFAULTS.charsPerSecondMax,
           );
           const cps = rand(Math.min(cpsMin, cpsMax), Math.max(cpsMin, cpsMax));
-
           const chars = String(messageText).length;
           let typingExtra = chars / Math.max(1, cps);
-
           const cap = lsGetNum(
             "msgDelay_typingMaxExtraSec",
             DEFAULTS.typingMaxExtraSec,
           );
           typingExtra = Math.min(typingExtra, cap);
-
           baseSec += typingExtra * 0.45;
         }
 
@@ -582,7 +616,6 @@
             ),
           );
           const key = DEFAULTS.sentCounterKey;
-
           const count =
             (parseInt(localStorage.getItem(key) || "0", 10) || 0) + 1;
           localStorage.setItem(key, String(count));
@@ -612,7 +645,7 @@
         if (d > 0) await sleep(d);
       }
 
-      // expose
+      // Expose functions
       window.getHumanDelayMs = getHumanDelayMs;
       window.applyHumanDelay = applyHumanDelay;
       window.logout = logout;
