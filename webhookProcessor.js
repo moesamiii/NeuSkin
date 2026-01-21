@@ -80,7 +80,7 @@ async function sendBookingConfirmation(to, booking) {
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
-📅 ${booking.appointment}`
+📅 ${booking.appointment}`,
   );
 }
 
@@ -110,7 +110,7 @@ async function handleAudioMessage(message, from) {
     if (!transcript) {
       await sendTextMessage(
         from,
-        "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
+        "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️",
       );
       return;
     }
@@ -199,3 +199,4 @@ async function handleAudioMessage(message, from) {
 }
 
 export { handleAudioMessage };
+g;
