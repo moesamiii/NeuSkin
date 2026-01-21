@@ -199,4 +199,3 @@ async function handleAudioMessage(message, from) {
 }
 
 export { handleAudioMessage };
-g;
