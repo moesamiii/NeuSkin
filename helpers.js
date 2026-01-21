@@ -4,6 +4,40 @@
 
 const axios = require("axios");
 const { askAI, validateNameWithAI } = require("./aiHelper");
+const { createClient } = require("@supabase/supabase-js");
+
+// ✅ Initialize Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+// ✅ Global variable to store clinic settings
+let clinicSettings = null;
+
+// ✅ Load clinic settings from database
+async function loadClinicSettings() {
+  try {
+    const { data, error } = await supabase
+      .from("clinic_settings")
+      .select("*")
+      .eq("clinic_id", "default")
+      .single();
+
+    if (error) {
+      console.error("❌ Error loading clinic settings:", error);
+      return;
+    }
+
+    clinicSettings = data;
+    console.log("✅ Clinic settings loaded:", clinicSettings?.clinic_name);
+  } catch (err) {
+    console.error("❌ Exception loading clinic settings:", err.message);
+  }
+}
+
+// ✅ Load settings on module initialization
+loadClinicSettings();
 
 // =============================================
 // 🗄 SUPABASE — ALL BOOKING LOGIC HERE
@@ -51,6 +85,22 @@ async function sendTextMessage(to, text) {
 // =============================================
 async function sendAppointmentOptions(to) {
   try {
+    // ✅ Get dynamic booking times or use defaults
+    const bookingTimes = clinicSettings?.booking_times || [
+      "3 PM",
+      "6 PM",
+      "9 PM",
+    ];
+
+    // ✅ Build buttons dynamically from database settings
+    const buttons = bookingTimes.slice(0, 3).map((time, index) => ({
+      type: "reply",
+      reply: {
+        id: `slot_${time.toLowerCase().replace(/\s/g, "")}`,
+        title: time,
+      },
+    }));
+
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -60,13 +110,7 @@ async function sendAppointmentOptions(to) {
         interactive: {
           type: "button",
           body: { text: "📅 اختر الموعد المناسب لك:" },
-          action: {
-            buttons: [
-              { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
-              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
-              { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
-            ],
-          },
+          action: { buttons },
         },
       },
       {
