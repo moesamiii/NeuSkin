@@ -2,26 +2,21 @@
  * mediaAssets.js
  *
  * Purpose:
- * - Centralized storage for static media assets and clinic metadata used across the bot.
- * - Keeps large lists (image URLs) and small config values (clinic name, location link) separate
- *   from the message-processing logic so they are easy to update or replace (e.g., move to a CDN).
+ * - Centralized storage for static media assets used across the bot.
+ * - Keeps large lists (image URLs) separate from message-processing logic.
  *
  * Exports:
- * - CLINIC_NAME
- * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES (array of direct image links)
  * - DOCTOR_IMAGES (array of objects with url, name, and specialization)
+ * - DOCTOR_INFO (array of doctor details)
  *
  * Usage:
  * - require('./mediaAssets') from messageHandlers.js or any other module that wants to send media.
  *
  * Note:
- * - This file contains only static data — no functions or network calls.
+ * - Clinic name and location are now loaded from database (clinic_settings table)
+ * - This file contains only static media data — no functions or network calls.
  */
-
-const CLINIC_NAME = "Smiles Clinic";
-const CLINIC_LOCATION_LINK =
-  "https://www.google.com/maps?q=32.0290684,35.863774&z=17&hl=en";
 
 const OFFER_IMAGES = [
   // Offer / services images (Google Drive direct links)
@@ -54,8 +49,6 @@ const DOCTOR_INFO = [
 ];
 
 module.exports = {
-  CLINIC_NAME,
-  CLINIC_LOCATION_LINK,
   OFFER_IMAGES,
   DOCTOR_IMAGES,
   DOCTOR_INFO,
