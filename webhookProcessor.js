@@ -1,7 +1,6 @@
 /**
  * webhookProcessor.js
- *
- * SAME FILE – VOICE REPLY ENABLED (VOICE IN → VOICE OUT)
+ * VOICE-FIRST VERSION - All responses are voice when user sends voice
  */
 
 import axios from "axios";
@@ -28,8 +27,6 @@ import {
   isCancelRequest,
   isEnglish,
 } from "./messageHandlers.js";
-
-/* 🔽🔽🔽 EVERYTHING BELOW IS 100% UNCHANGED 🔽🔽🔽 */
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -69,6 +66,8 @@ async function generateVoice(text) {
 // 🎧 Send WhatsApp Voice Message
 // ------------------------------------
 async function sendVoiceMessage(to, audioBuffer) {
+  console.log(`🎤 Sending voice message to ${to}`);
+
   // 1️⃣ Upload audio to WhatsApp
   const form = new FormData();
   form.append("file", audioBuffer, {
@@ -76,7 +75,7 @@ async function sendVoiceMessage(to, audioBuffer) {
     contentType: "audio/ogg",
   });
   form.append("messaging_product", "whatsapp");
-  form.append("type", "audio"); // ✅ REQUIRED
+  form.append("type", "audio");
 
   const uploadRes = await axios.post(
     `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/media`,
@@ -90,9 +89,10 @@ async function sendVoiceMessage(to, audioBuffer) {
   );
 
   const mediaId = uploadRes.data.id;
+  console.log(`✅ Audio uploaded, media ID: ${mediaId}`);
 
   // 2️⃣ Send voice note
-  await axios.post(
+  const sendRes = await axios.post(
     `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: "whatsapp",
@@ -100,7 +100,7 @@ async function sendVoiceMessage(to, audioBuffer) {
       type: "audio",
       audio: {
         id: mediaId,
-        voice: true, // ✅ CRITICAL
+        voice: true, // ✅ CRITICAL - makes it a voice note
       },
     },
     {
@@ -110,10 +110,13 @@ async function sendVoiceMessage(to, audioBuffer) {
       },
     },
   );
+
+  console.log(`✅ Voice message sent successfully`);
+  return sendRes.data;
 }
 
 // ------------------------------------
-// 🧠 Helper functions (UNCHANGED)
+// 🧠 Helper functions
 // ------------------------------------
 function normalizeArabicDigits(input = "") {
   return input
@@ -173,23 +176,34 @@ function getSession(from) {
     global.userSessions[from] = {
       waitingForCancelPhone: false,
       waitingForOffersConfirmation: false,
+      lastMessageType: null, // Track if user prefers voice or text
     };
   }
   return global.userSessions[from];
 }
 
 // ------------------------------------
-// 🎙️ MAIN AUDIO HANDLER (UPDATED)
+// 🎙️ MAIN AUDIO HANDLER
 // ------------------------------------
 async function handleAudioMessage(message, from) {
+  console.log(`🎤 Processing audio message from ${from}`);
+
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
     const session = getSession(from);
 
-    const mediaId = message?.audio?.id;
-    if (!mediaId) return;
+    // Mark that user prefers voice
+    session.lastMessageType = "audio";
 
+    const mediaId = message?.audio?.id;
+    if (!mediaId) {
+      console.error("❌ No media ID found in audio message");
+      return;
+    }
+
+    console.log(`📝 Transcribing audio (media ID: ${mediaId})`);
     const transcript = await transcribeAudio(mediaId, from);
+    console.log(`📝 Transcript: "${transcript}"`);
 
     if (!transcript) {
       const voice = await generateVoice(
@@ -199,6 +213,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Handle cancel request
     if (isCancelRequest(transcript)) {
       session.waitingForCancelPhone = true;
       delete tempBookings[from];
@@ -206,21 +221,25 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Handle location request
     if (isLocationRequest(transcript)) {
       await sendLocationMessages(from, isEnglish(transcript) ? "en" : "ar");
       return;
     }
 
+    // Handle offers request
     if (isOffersRequest(transcript)) {
       await sendOffersImages(from, isEnglish(transcript) ? "en" : "ar");
       return;
     }
 
+    // Handle doctors request
     if (isDoctorsRequest(transcript)) {
       await sendDoctorsImages(from, isEnglish(transcript) ? "en" : "ar");
       return;
     }
 
+    // Handle Friday mention
     if (containsFriday(transcript)) {
       const voice = await generateVoice("يوم الجمعة عطلة رسمية.");
       await sendVoiceMessage(from, voice);
@@ -228,6 +247,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Handle general questions
     if (isQuestion(transcript)) {
       const answer = await askAI(transcript);
       const voice = await generateVoice(answer);
@@ -235,6 +255,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Start booking flow
     if (!tempBookings[from]) {
       if (
         transcript.includes("حجز") ||
@@ -252,6 +273,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Collect name
     if (!tempBookings[from].name) {
       if (!(await validateNameWithAI(transcript))) {
         const voice = await generateVoice("أدخل اسمًا صحيحًا.");
@@ -264,10 +286,13 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Collect phone
     if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
       if (!/^07\d{8}$/.test(normalized)) {
-        const voice = await generateVoice("رقم غير صحيح.");
+        const voice = await generateVoice(
+          "رقم غير صحيح. أدخل رقم جوال أردني يبدأ بـ 07.",
+        );
         await sendVoiceMessage(from, voice);
         return;
       }
@@ -276,6 +301,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
+    // Collect service
     if (!tempBookings[from].service) {
       tempBookings[from].service = transcript;
       const booking = tempBookings[from];
@@ -285,8 +311,173 @@ async function handleAudioMessage(message, from) {
     }
   } catch (err) {
     console.error("❌ Audio processing error:", err);
-    throw err;
+    const voice = await generateVoice("عذراً، حدث خطأ. حاول مرة أخرى.");
+    await sendVoiceMessage(from, voice);
   }
 }
 
-export { handleAudioMessage };
+// ------------------------------------
+// 💬 MAIN TEXT HANDLER (unchanged logic)
+// ------------------------------------
+async function handleTextMessage(message, from) {
+  console.log(`💬 Processing text message from ${from}`);
+
+  try {
+    const tempBookings = (global.tempBookings = global.tempBookings || {});
+    const session = getSession(from);
+
+    // Mark that user prefers text
+    session.lastMessageType = "text";
+
+    const userMessage = message.text?.body || "";
+
+    if (!userMessage) {
+      await sendTextMessage(from, "مرحباً! كيف يمكنني مساعدتك؟");
+      return;
+    }
+
+    // Handle cancel request
+    if (isCancelRequest(userMessage)) {
+      session.waitingForCancelPhone = true;
+      delete tempBookings[from];
+      await askForCancellationPhone(from);
+      return;
+    }
+
+    // Handle location request
+    if (isLocationRequest(userMessage)) {
+      await sendLocationMessages(from, isEnglish(userMessage) ? "en" : "ar");
+      return;
+    }
+
+    // Handle offers request
+    if (isOffersRequest(userMessage)) {
+      await sendOffersImages(from, isEnglish(userMessage) ? "en" : "ar");
+      return;
+    }
+
+    // Handle doctors request
+    if (isDoctorsRequest(userMessage)) {
+      await sendDoctorsImages(from, isEnglish(userMessage) ? "en" : "ar");
+      return;
+    }
+
+    // Handle Friday mention
+    if (containsFriday(userMessage)) {
+      await sendTextMessage(from, "يوم الجمعة عطلة رسمية.");
+      await sendAppointmentOptions(from);
+      return;
+    }
+
+    // Handle general questions
+    if (isQuestion(userMessage)) {
+      const answer = await askAI(userMessage);
+      await sendTextMessage(from, answer);
+      return;
+    }
+
+    // Start booking flow
+    if (!tempBookings[from]) {
+      if (
+        userMessage.includes("حجز") ||
+        userMessage.toLowerCase().includes("book") ||
+        userMessage.includes("موعد") ||
+        userMessage.includes("appointment")
+      ) {
+        tempBookings[from] = {};
+        await sendAppointmentOptions(from);
+      } else {
+        const answer = await askAI(userMessage);
+        await sendTextMessage(from, answer);
+      }
+      return;
+    }
+
+    // Collect name
+    if (!tempBookings[from].name) {
+      if (!(await validateNameWithAI(userMessage))) {
+        await sendTextMessage(from, "أدخل اسمًا صحيحًا.");
+        return;
+      }
+      tempBookings[from].name = userMessage;
+      await sendTextMessage(from, "أرسل رقم جوالك.");
+      return;
+    }
+
+    // Collect phone
+    if (!tempBookings[from].phone) {
+      const normalized = normalizeArabicDigits(userMessage);
+      if (!/^07\d{8}$/.test(normalized)) {
+        await sendTextMessage(
+          from,
+          "رقم غير صحيح. أدخل رقم جوال أردني يبدأ بـ 07.",
+        );
+        return;
+      }
+      tempBookings[from].phone = normalized;
+      await sendServiceList(from);
+      return;
+    }
+
+    // Collect service
+    if (!tempBookings[from].service) {
+      tempBookings[from].service = userMessage;
+      const booking = tempBookings[from];
+      await saveBooking(booking);
+      await sendTextMessage(
+        from,
+        `تم حفظ حجزك بنجاح. ${booking.service} بتاريخ ${booking.appointment}`,
+      );
+      delete tempBookings[from];
+    }
+  } catch (err) {
+    console.error("❌ Text processing error:", err);
+    await sendTextMessage(from, "عذراً، حدث خطأ. حاول مرة أخرى.");
+  }
+}
+
+// ------------------------------------
+// 🎯 MAIN WEBHOOK PROCESSOR
+// ------------------------------------
+export async function processWebhook(body) {
+  try {
+    const entry = body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const messages = value?.messages;
+
+    if (!messages || messages.length === 0) {
+      console.log("⚠️ No messages in webhook");
+      return;
+    }
+
+    const message = messages[0];
+    const from = message.from;
+    const messageType = message.type;
+
+    console.log(`\n📨 Received ${messageType} message from ${from}`);
+
+    // ✅ CRITICAL: Route based on message type
+    if (messageType === "audio") {
+      console.log("🎤 Routing to audio handler");
+      await handleAudioMessage(message, from);
+    } else if (messageType === "text") {
+      console.log("💬 Routing to text handler");
+      await handleTextMessage(message, from);
+    } else {
+      console.log(`⚠️ Unsupported message type: ${messageType}`);
+      await sendTextMessage(from, "عذراً، نوع الرسالة غير مدعوم.");
+    }
+  } catch (error) {
+    console.error("❌ Webhook processing error:", error);
+    throw error;
+  }
+}
+
+// Export handlers for external use
+export {
+  handleAudioMessage,
+  handleTextMessage,
+  generateVoice,
+  sendVoiceMessage,
+};
