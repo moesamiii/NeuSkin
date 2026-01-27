@@ -1,8 +1,11 @@
 /**
  * webhookProcessor.js
  *
- * SAME FILE – ESM FIX ONLY
+ * SAME FILE – VOICE REPLY ENABLED (VOICE IN → VOICE OUT)
  */
+
+import axios from "axios";
+import FormData from "form-data";
 
 import {
   askAI,
@@ -28,6 +31,85 @@ import {
 
 /* 🔽🔽🔽 EVERYTHING BELOW IS 100% UNCHANGED 🔽🔽🔽 */
 
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+
+// ✅ Saudi Arabic voice (Jeddawi)
+const VOICE_ID = "yXEnnEln9armDCyhkXcA";
+
+// ------------------------------------
+// 🎙️ Generate AI Voice (ElevenLabs)
+// ------------------------------------
+async function generateVoice(text) {
+  const response = await axios.post(
+    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    {
+      text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+      },
+    },
+    {
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      responseType: "arraybuffer",
+    },
+  );
+
+  return Buffer.from(response.data);
+}
+
+// ------------------------------------
+// 🎧 Send WhatsApp Voice Message
+// ------------------------------------
+async function sendVoiceMessage(to, audioBuffer) {
+  // 1️⃣ Upload audio to WhatsApp
+  const form = new FormData();
+  form.append("file", audioBuffer, {
+    filename: "reply.ogg",
+    contentType: "audio/ogg",
+  });
+  form.append("messaging_product", "whatsapp");
+
+  const uploadRes = await axios.post(
+    `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/media`,
+    form,
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        ...form.getHeaders(),
+      },
+    },
+  );
+
+  const mediaId = uploadRes.data.id;
+
+  // 2️⃣ Send voice message
+  await axios.post(
+    `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "audio",
+      audio: { id: mediaId },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+}
+
+// ------------------------------------
+// 🧠 Helper functions (UNCHANGED)
+// ------------------------------------
 function normalizeArabicDigits(input = "") {
   return input
     .replace(/[^\d٠-٩]/g, "")
@@ -74,20 +156,14 @@ function containsFriday(text = "") {
 }
 
 async function sendBookingConfirmation(to, booking) {
-  await sendTextMessage(
-    to,
-    `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`,
+  const voice = await generateVoice(
+    `تم حفظ حجزك بنجاح. ${booking.service} بتاريخ ${booking.appointment}`,
   );
+  await sendVoiceMessage(to, voice);
 }
 
 function getSession(from) {
-  if (!global.userSessions) {
-    global.userSessions = {};
-  }
+  if (!global.userSessions) global.userSessions = {};
   if (!global.userSessions[from]) {
     global.userSessions[from] = {
       waitingForCancelPhone: false,
@@ -97,6 +173,9 @@ function getSession(from) {
   return global.userSessions[from];
 }
 
+// ------------------------------------
+// 🎙️ MAIN AUDIO HANDLER (UPDATED)
+// ------------------------------------
 async function handleAudioMessage(message, from) {
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
@@ -108,10 +187,10 @@ async function handleAudioMessage(message, from) {
     const transcript = await transcribeAudio(mediaId, from);
 
     if (!transcript) {
-      await sendTextMessage(
-        from,
-        "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️",
+      const voice = await generateVoice(
+        "لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى.",
       );
+      await sendVoiceMessage(from, voice);
       return;
     }
 
@@ -138,14 +217,16 @@ async function handleAudioMessage(message, from) {
     }
 
     if (containsFriday(transcript)) {
-      await sendTextMessage(from, "📅 يوم الجمعة عطلة رسمية");
+      const voice = await generateVoice("يوم الجمعة عطلة رسمية.");
+      await sendVoiceMessage(from, voice);
       await sendAppointmentOptions(from);
       return;
     }
 
     if (isQuestion(transcript)) {
       const answer = await askAI(transcript);
-      await sendTextMessage(from, answer);
+      const voice = await generateVoice(answer);
+      await sendVoiceMessage(from, voice);
       return;
     }
 
@@ -159,25 +240,30 @@ async function handleAudioMessage(message, from) {
         tempBookings[from] = {};
         await sendAppointmentOptions(from);
       } else {
-        await sendTextMessage(from, await askAI(transcript));
+        const answer = await askAI(transcript);
+        const voice = await generateVoice(answer);
+        await sendVoiceMessage(from, voice);
       }
       return;
     }
 
     if (!tempBookings[from].name) {
       if (!(await validateNameWithAI(transcript))) {
-        await sendTextMessage(from, "⚠️ أدخل اسمًا صحيحًا");
+        const voice = await generateVoice("أدخل اسمًا صحيحًا.");
+        await sendVoiceMessage(from, voice);
         return;
       }
       tempBookings[from].name = transcript;
-      await sendTextMessage(from, "📱 أرسل رقم جوالك");
+      const voice = await generateVoice("أرسل رقم جوالك.");
+      await sendVoiceMessage(from, voice);
       return;
     }
 
     if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
       if (!/^07\d{8}$/.test(normalized)) {
-        await sendTextMessage(from, "⚠️ رقم غير صحيح");
+        const voice = await generateVoice("رقم غير صحيح.");
+        await sendVoiceMessage(from, voice);
         return;
       }
       tempBookings[from].phone = normalized;
