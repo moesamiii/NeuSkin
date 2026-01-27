@@ -4,8 +4,40 @@
 
 import axios from "axios";
 import FormData from "form-data";
-import { askAI, validateNameWithAI } from "./aiHelper.js";
+import Groq from "groq-sdk";
 import { createClient } from "@supabase/supabase-js";
+
+// =============================================
+// 🤖 GROQ AI CLIENT
+// =============================================
+const groqClient = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+async function askAI(userMessage) {
+  try {
+    const completion = await groqClient.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content:
+            "أنت موظف خدمة عملاء لعيادة Glow Clinic. رد فقط على الأسئلة المتعلقة بالمواعيد، الأسعار، الموقع، والحجز. رد بإيجاز وبالعربية فقط.",
+        },
+        { role: "user", content: userMessage },
+      ],
+    });
+    return completion.choices[0]?.message?.content || "عذراً، لم أفهم.";
+  } catch (error) {
+    console.error("❌ AI error:", error.message);
+    return "عذراً، حدث خطأ. حاول مرة أخرى.";
+  }
+}
+
+async function validateNameWithAI(name) {
+  // Simple validation
+  return name && name.trim().length > 0 && /[a-zA-Zأ-ي]/.test(name);
+}
 
 // =============================================
 // 🗄 SUPABASE
@@ -359,7 +391,7 @@ async function processCancellation(to, phone, useVoice = false) {
 // 📤 EXPORTS (ES6 STYLE)
 // =============================================
 export {
-  // AI
+  // AI - NOW DEFINED HERE
   askAI,
   validateNameWithAI,
 
