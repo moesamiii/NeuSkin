@@ -58,7 +58,6 @@ async function generateVoice(text) {
         "Content-Type": "application/json",
         Accept: "audio/ogg",
       },
-
       responseType: "arraybuffer",
     },
   );
@@ -77,6 +76,7 @@ async function sendVoiceMessage(to, audioBuffer) {
     contentType: "audio/ogg",
   });
   form.append("messaging_product", "whatsapp");
+  form.append("type", "audio"); // ✅ REQUIRED
 
   const uploadRes = await axios.post(
     `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/media`,
@@ -91,14 +91,17 @@ async function sendVoiceMessage(to, audioBuffer) {
 
   const mediaId = uploadRes.data.id;
 
-  // 2️⃣ Send voice message
+  // 2️⃣ Send voice note
   await axios.post(
     `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: "whatsapp",
-      to,
+      to: to,
       type: "audio",
-      audio: { id: mediaId },
+      audio: {
+        id: mediaId,
+        voice: true, // ✅ CRITICAL
+      },
     },
     {
       headers: {
