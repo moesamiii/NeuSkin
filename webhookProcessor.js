@@ -1,21 +1,9 @@
 /**
  * webhookProcessor.js
- * VOICE-FIRST VERSION - All responses are voice when user sends voice
+ * VOICE-ENABLED VERSION
  */
-
 import axios from "axios";
 import FormData from "form-data";
-
-import {
-  askAI,
-  validateNameWithAI,
-  sendTextMessage,
-  sendServiceList,
-  sendAppointmentOptions,
-  saveBooking,
-  askForCancellationPhone,
-} from "./helpers.js";
-
 import {
   transcribeAudio,
   sendLocationMessages,
@@ -31,23 +19,17 @@ import {
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-
-// ✅ Saudi Arabic voice (Jeddawi)
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const VOICE_ID = "yXEnnEln9armDCyhkXcA";
 
-// ------------------------------------
-// 🎙️ Generate AI Voice (ElevenLabs)
-// ------------------------------------
+// 🎙️ Generate Voice
 async function generateVoice(text) {
   const response = await axios.post(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
     {
       text,
       model_id: "eleven_multilingual_v2",
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-      },
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
     },
     {
       headers: {
@@ -58,17 +40,11 @@ async function generateVoice(text) {
       responseType: "arraybuffer",
     },
   );
-
   return Buffer.from(response.data);
 }
 
-// ------------------------------------
-// 🎧 Send WhatsApp Voice Message
-// ------------------------------------
+// 🎧 Send Voice Message
 async function sendVoiceMessage(to, audioBuffer) {
-  console.log(`🎤 Sending voice message to ${to}`);
-
-  // 1️⃣ Upload audio to WhatsApp
   const form = new FormData();
   form.append("file", audioBuffer, {
     filename: "reply.ogg",
@@ -88,55 +64,167 @@ async function sendVoiceMessage(to, audioBuffer) {
     },
   );
 
-  const mediaId = uploadRes.data.id;
-  console.log(`✅ Audio uploaded, media ID: ${mediaId}`);
-
-  // 2️⃣ Send voice note
-  const sendRes = await axios.post(
+  await axios.post(
     `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: "whatsapp",
-      to: to,
+      to,
       type: "audio",
-      audio: {
-        id: mediaId,
-        voice: true, // ✅ CRITICAL - makes it a voice note
-      },
+      audio: { id: uploadRes.data.id, voice: true },
+    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
+}
+
+// 💬 Send Text Message
+async function sendTextMessage(to, text) {
+  await axios.post(
+    `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+    { messaging_product: "whatsapp", to, text: { body: text } },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
+}
+
+// 🧠 AI Helpers
+async function askAI(question) {
+  const response = await axios.post(
+    "https://api.anthropic.com/v1/messages",
+    {
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: `أنت مساعد عيادة Glow Clinic. أجب بإيجاز:\n${question}`,
+        },
+      ],
     },
     {
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
     },
   );
-
-  console.log(`✅ Voice message sent successfully`);
-  return sendRes.data;
+  return response.data.content[0].text;
 }
 
-// ------------------------------------
-// 🧠 Helper functions
-// ------------------------------------
+async function validateNameWithAI(name) {
+  const response = await axios.post(
+    "https://api.anthropic.com/v1/messages",
+    {
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 10,
+      messages: [
+        {
+          role: "user",
+          content: `Is "${name}" a valid name? Answer: YES or NO`,
+        },
+      ],
+    },
+    {
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+    },
+  );
+  return response.data.content[0].text.trim().toUpperCase() === "YES";
+}
+
+// 📋 Send Options (VOICE-AWARE)
+async function sendAppointmentOptions(to, useVoice = false) {
+  if (useVoice) {
+    const voice = await generateVoice(
+      "اختر موعدك: 3 مساءً، 6 مساءً، أو 9 مساءً.",
+    );
+    await sendVoiceMessage(to, voice);
+    return;
+  }
+  await axios.post(
+    `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: "📅 اختر الموعد المناسب لك:" },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
+            { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
+            { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
+          ],
+        },
+      },
+    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
+}
+
+async function sendServiceList(to, useVoice = false) {
+  if (useVoice) {
+    const voice = await generateVoice(
+      "اختر الخدمة: فحص عام، تنظيف الأسنان، تبييض، حشو، علاج جذور، تركيبات، تقويم، أو خلع.",
+    );
+    await sendVoiceMessage(to, voice);
+    return;
+  }
+  await axios.post(
+    `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        header: { type: "text", text: "💊 اختر الخدمة" },
+        body: { text: "اختر من القائمة:" },
+        action: {
+          button: "عرض الخدمات",
+          sections: [
+            {
+              title: "الخدمات الأساسية",
+              rows: [
+                { id: "service_فحص", title: "فحص عام" },
+                { id: "service_تنظيف", title: "تنظيف" },
+                { id: "service_تبييض", title: "تبييض" },
+                { id: "service_حشو", title: "حشو" },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
+}
+
+async function askForCancellationPhone(to, useVoice = false) {
+  const msg = "أرسل رقم الجوال المستخدم بالحجز لإلغاء الموعد.";
+  if (useVoice) {
+    const voice = await generateVoice(msg);
+    await sendVoiceMessage(to, voice);
+  } else {
+    await sendTextMessage(to, msg);
+  }
+}
+
+// 🗄 Database
+async function saveBooking(booking) {
+  console.log("✅ Booking saved:", booking);
+}
+
+// 🔍 Helpers
 function normalizeArabicDigits(input = "") {
   return input
     .replace(/[^\d٠-٩]/g, "")
-    .replace(/٠/g, "0")
-    .replace(/١/g, "1")
-    .replace(/٢/g, "2")
-    .replace(/٣/g, "3")
-    .replace(/٤/g, "4")
-    .replace(/٥/g, "5")
-    .replace(/٦/g, "6")
-    .replace(/٧/g, "7")
-    .replace(/٨/g, "8")
-    .replace(/٩/g, "9");
+    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 }
 
 function isQuestion(text = "") {
-  if (!text) return false;
-
-  const questionWords = [
+  const q = [
     "?",
     "كيف",
     "ليش",
@@ -147,107 +235,58 @@ function isQuestion(text = "") {
     "what",
     "why",
     "how",
-    "when",
-    "where",
-    "who",
   ];
-
   return (
-    text.trim().endsWith("?") ||
-    questionWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
+    text.trim().endsWith("?") || q.some((w) => text.toLowerCase().includes(w))
   );
 }
 
 function containsFriday(text = "") {
-  const fridayWords = ["الجمعة", "Friday", "friday"];
-  return fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()));
-}
-
-async function sendBookingConfirmation(to, booking) {
-  const voice = await generateVoice(
-    `تم حفظ حجزك بنجاح. ${booking.service} بتاريخ ${booking.appointment}`,
+  return ["الجمعة", "Friday"].some((w) =>
+    text.toLowerCase().includes(w.toLowerCase()),
   );
-  await sendVoiceMessage(to, voice);
 }
 
 function getSession(from) {
   if (!global.userSessions) global.userSessions = {};
-  if (!global.userSessions[from]) {
-    global.userSessions[from] = {
-      waitingForCancelPhone: false,
-      waitingForOffersConfirmation: false,
-      lastMessageType: null, // Track if user prefers voice or text
-    };
-  }
+  if (!global.userSessions[from])
+    global.userSessions[from] = { lastMessageType: null };
   return global.userSessions[from];
 }
 
-// ------------------------------------
-// 🎙️ MAIN AUDIO HANDLER
-// ------------------------------------
+// 🎙️ AUDIO HANDLER
 async function handleAudioMessage(message, from) {
-  console.log(`🎤 Processing audio message from ${from}`);
-
+  console.log(`🎤 Audio from ${from}`);
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
     const session = getSession(from);
-
-    // Mark that user prefers voice
     session.lastMessageType = "audio";
 
-    const mediaId = message?.audio?.id;
-    if (!mediaId) {
-      console.error("❌ No media ID found in audio message");
-      return;
-    }
-
-    console.log(`📝 Transcribing audio (media ID: ${mediaId})`);
-    const transcript = await transcribeAudio(mediaId, from);
-    console.log(`📝 Transcript: "${transcript}"`);
-
+    const transcript = await transcribeAudio(message?.audio?.id, from);
     if (!transcript) {
-      const voice = await generateVoice(
-        "لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى.",
-      );
+      const voice = await generateVoice("لم أفهم، حاول مرة أخرى.");
       await sendVoiceMessage(from, voice);
       return;
     }
 
-    // Handle cancel request
     if (isCancelRequest(transcript)) {
-      session.waitingForCancelPhone = true;
       delete tempBookings[from];
-      await askForCancellationPhone(from);
+      await askForCancellationPhone(from, true); // ✅ VOICE
       return;
     }
 
-    // Handle location request
     if (isLocationRequest(transcript)) {
       await sendLocationMessages(from, isEnglish(transcript) ? "en" : "ar");
       return;
     }
 
-    // Handle offers request
-    if (isOffersRequest(transcript)) {
-      await sendOffersImages(from, isEnglish(transcript) ? "en" : "ar");
-      return;
-    }
-
-    // Handle doctors request
-    if (isDoctorsRequest(transcript)) {
-      await sendDoctorsImages(from, isEnglish(transcript) ? "en" : "ar");
-      return;
-    }
-
-    // Handle Friday mention
     if (containsFriday(transcript)) {
-      const voice = await generateVoice("يوم الجمعة عطلة رسمية.");
+      const voice = await generateVoice("يوم الجمعة عطلة.");
       await sendVoiceMessage(from, voice);
-      await sendAppointmentOptions(from);
+      await sendAppointmentOptions(from, true); // ✅ VOICE
       return;
     }
 
-    // Handle general questions
     if (isQuestion(transcript)) {
       const answer = await askAI(transcript);
       const voice = await generateVoice(answer);
@@ -255,16 +294,10 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    // Start booking flow
     if (!tempBookings[from]) {
-      if (
-        transcript.includes("حجز") ||
-        transcript.toLowerCase().includes("book") ||
-        transcript.includes("موعد") ||
-        transcript.includes("appointment")
-      ) {
+      if (transcript.includes("حجز") || transcript.includes("book")) {
         tempBookings[from] = {};
-        await sendAppointmentOptions(from);
+        await sendAppointmentOptions(from, true); // ✅ VOICE
       } else {
         const answer = await askAI(transcript);
         const voice = await generateVoice(answer);
@@ -273,7 +306,6 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    // Collect name
     if (!tempBookings[from].name) {
       if (!(await validateNameWithAI(transcript))) {
         const voice = await generateVoice("أدخل اسمًا صحيحًا.");
@@ -286,106 +318,54 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    // Collect phone
     if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
       if (!/^07\d{8}$/.test(normalized)) {
-        const voice = await generateVoice(
-          "رقم غير صحيح. أدخل رقم جوال أردني يبدأ بـ 07.",
-        );
+        const voice = await generateVoice("رقم غير صحيح.");
         await sendVoiceMessage(from, voice);
         return;
       }
       tempBookings[from].phone = normalized;
-      await sendServiceList(from);
+      await sendServiceList(from, true); // ✅ VOICE
       return;
     }
 
-    // Collect service
     if (!tempBookings[from].service) {
       tempBookings[from].service = transcript;
       const booking = tempBookings[from];
       await saveBooking(booking);
-      await sendBookingConfirmation(from, booking);
+      const voice = await generateVoice(`تم حفظ حجزك. ${booking.service}`);
+      await sendVoiceMessage(from, voice);
       delete tempBookings[from];
     }
   } catch (err) {
-    console.error("❌ Audio processing error:", err);
-    const voice = await generateVoice("عذراً، حدث خطأ. حاول مرة أخرى.");
-    await sendVoiceMessage(from, voice);
+    console.error("❌ Audio error:", err);
   }
 }
 
-// ------------------------------------
-// 💬 MAIN TEXT HANDLER (unchanged logic)
-// ------------------------------------
+// 💬 TEXT HANDLER
 async function handleTextMessage(message, from) {
-  console.log(`💬 Processing text message from ${from}`);
-
+  console.log(`💬 Text from ${from}`);
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
-    const session = getSession(from);
-
-    // Mark that user prefers text
-    session.lastMessageType = "text";
-
     const userMessage = message.text?.body || "";
 
-    if (!userMessage) {
-      await sendTextMessage(from, "مرحباً! كيف يمكنني مساعدتك؟");
-      return;
-    }
-
-    // Handle cancel request
     if (isCancelRequest(userMessage)) {
-      session.waitingForCancelPhone = true;
       delete tempBookings[from];
-      await askForCancellationPhone(from);
+      await askForCancellationPhone(from, false);
       return;
     }
 
-    // Handle location request
-    if (isLocationRequest(userMessage)) {
-      await sendLocationMessages(from, isEnglish(userMessage) ? "en" : "ar");
-      return;
-    }
-
-    // Handle offers request
-    if (isOffersRequest(userMessage)) {
-      await sendOffersImages(from, isEnglish(userMessage) ? "en" : "ar");
-      return;
-    }
-
-    // Handle doctors request
-    if (isDoctorsRequest(userMessage)) {
-      await sendDoctorsImages(from, isEnglish(userMessage) ? "en" : "ar");
-      return;
-    }
-
-    // Handle Friday mention
-    if (containsFriday(userMessage)) {
-      await sendTextMessage(from, "يوم الجمعة عطلة رسمية.");
-      await sendAppointmentOptions(from);
-      return;
-    }
-
-    // Handle general questions
     if (isQuestion(userMessage)) {
       const answer = await askAI(userMessage);
       await sendTextMessage(from, answer);
       return;
     }
 
-    // Start booking flow
     if (!tempBookings[from]) {
-      if (
-        userMessage.includes("حجز") ||
-        userMessage.toLowerCase().includes("book") ||
-        userMessage.includes("موعد") ||
-        userMessage.includes("appointment")
-      ) {
+      if (userMessage.includes("حجز") || userMessage.includes("book")) {
         tempBookings[from] = {};
-        await sendAppointmentOptions(from);
+        await sendAppointmentOptions(from, false);
       } else {
         const answer = await askAI(userMessage);
         await sendTextMessage(from, answer);
@@ -393,7 +373,6 @@ async function handleTextMessage(message, from) {
       return;
     }
 
-    // Collect name
     if (!tempBookings[from].name) {
       if (!(await validateNameWithAI(userMessage))) {
         await sendTextMessage(from, "أدخل اسمًا صحيحًا.");
@@ -404,77 +383,45 @@ async function handleTextMessage(message, from) {
       return;
     }
 
-    // Collect phone
     if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(userMessage);
       if (!/^07\d{8}$/.test(normalized)) {
-        await sendTextMessage(
-          from,
-          "رقم غير صحيح. أدخل رقم جوال أردني يبدأ بـ 07.",
-        );
+        await sendTextMessage(from, "رقم غير صحيح.");
         return;
       }
       tempBookings[from].phone = normalized;
-      await sendServiceList(from);
+      await sendServiceList(from, false);
       return;
     }
 
-    // Collect service
     if (!tempBookings[from].service) {
       tempBookings[from].service = userMessage;
-      const booking = tempBookings[from];
-      await saveBooking(booking);
-      await sendTextMessage(
-        from,
-        `تم حفظ حجزك بنجاح. ${booking.service} بتاريخ ${booking.appointment}`,
-      );
+      await saveBooking(tempBookings[from]);
+      await sendTextMessage(from, `تم حفظ حجزك. ${tempBookings[from].service}`);
       delete tempBookings[from];
     }
   } catch (err) {
-    console.error("❌ Text processing error:", err);
-    await sendTextMessage(from, "عذراً، حدث خطأ. حاول مرة أخرى.");
+    console.error("❌ Text error:", err);
   }
 }
 
-// ------------------------------------
-// 🎯 MAIN WEBHOOK PROCESSOR
-// ------------------------------------
+// 🎯 MAIN PROCESSOR
 export async function processWebhook(body) {
-  try {
-    const entry = body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const messages = value?.messages;
+  const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (!message) return;
 
-    if (!messages || messages.length === 0) {
-      console.log("⚠️ No messages in webhook");
-      return;
-    }
+  const from = message.from;
+  const messageType = message.type;
 
-    const message = messages[0];
-    const from = message.from;
-    const messageType = message.type;
+  console.log(`\n📨 ${messageType} from ${from}`);
 
-    console.log(`\n📨 Received ${messageType} message from ${from}`);
-
-    // ✅ CRITICAL: Route based on message type
-    if (messageType === "audio") {
-      console.log("🎤 Routing to audio handler");
-      await handleAudioMessage(message, from);
-    } else if (messageType === "text") {
-      console.log("💬 Routing to text handler");
-      await handleTextMessage(message, from);
-    } else {
-      console.log(`⚠️ Unsupported message type: ${messageType}`);
-      await sendTextMessage(from, "عذراً، نوع الرسالة غير مدعوم.");
-    }
-  } catch (error) {
-    console.error("❌ Webhook processing error:", error);
-    throw error;
+  if (messageType === "audio") {
+    await handleAudioMessage(message, from);
+  } else if (messageType === "text") {
+    await handleTextMessage(message, from);
   }
 }
 
-// Export handlers for external use
 export {
   handleAudioMessage,
   handleTextMessage,

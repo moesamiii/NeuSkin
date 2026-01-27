@@ -1,8 +1,9 @@
 /**
- * helpers.js (FINAL — Supabase ONLY, No Google Sheets)
+ * helpers.js (FINAL — Supabase + VOICE SUPPORT)
  */
 
 const axios = require("axios");
+const FormData = require("form-data");
 const { askAI, validateNameWithAI } = require("./aiHelper");
 const { createClient } = require("@supabase/supabase-js");
 
@@ -53,6 +54,86 @@ const {
 // =============================================
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const VOICE_ID = "yXEnnEln9armDCyhkXcA"; // Saudi Arabic voice
+
+// =============================================
+// 🎙️ VOICE GENERATION & SENDING
+// =============================================
+async function generateVoice(text) {
+  console.log(`🎤 Generating voice for: "${text.substring(0, 50)}..."`);
+
+  const response = await axios.post(
+    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    {
+      text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+      },
+    },
+    {
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        Accept: "audio/ogg",
+      },
+      responseType: "arraybuffer",
+    },
+  );
+
+  return Buffer.from(response.data);
+}
+
+async function sendVoiceMessage(to, audioBuffer) {
+  console.log(`🎧 Sending voice message to ${to}`);
+
+  // 1️⃣ Upload audio to WhatsApp
+  const form = new FormData();
+  form.append("file", audioBuffer, {
+    filename: "reply.ogg",
+    contentType: "audio/ogg",
+  });
+  form.append("messaging_product", "whatsapp");
+  form.append("type", "audio");
+
+  const uploadRes = await axios.post(
+    `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/media`,
+    form,
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        ...form.getHeaders(),
+      },
+    },
+  );
+
+  const mediaId = uploadRes.data.id;
+  console.log(`✅ Audio uploaded, media ID: ${mediaId}`);
+
+  // 2️⃣ Send voice note
+  await axios.post(
+    `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "audio",
+      audio: {
+        id: mediaId,
+        voice: true, // ✅ CRITICAL - makes it a voice note
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  console.log(`✅ Voice message sent successfully`);
+}
 
 // =============================================
 // 💬 SEND WHATSAPP TEXT MESSAGE
@@ -81,9 +162,19 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS
+// 📅 APPOINTMENT BUTTONS (VOICE-AWARE)
 // =============================================
-async function sendAppointmentOptions(to) {
+async function sendAppointmentOptions(to, useVoice = false) {
+  // ✅ If voice mode, send voice message
+  if (useVoice) {
+    const voice = await generateVoice(
+      "اختر موعدك: الساعة 3 مساءً، 6 مساءً، أو 9 مساءً. أرسل الوقت المناسب لك.",
+    );
+    await sendVoiceMessage(to, voice);
+    return;
+  }
+
+  // ✅ Otherwise, send interactive buttons
   try {
     // ✅ Get dynamic booking times or use defaults
     const bookingTimes = clinicSettings?.booking_times || [
@@ -121,13 +212,25 @@ async function sendAppointmentOptions(to) {
     );
   } catch (err) {
     console.error("❌ Appointment button error:", err.message);
+    // Fallback to text if buttons fail
+    await sendTextMessage(to, "📅 أرسل الوقت المناسب لك: 3 PM، 6 PM، أو 9 PM");
   }
 }
 
 // =============================================
-// 💊 SERVICE LIST
+// 💊 SERVICE LIST (VOICE-AWARE)
 // =============================================
-async function sendServiceList(to) {
+async function sendServiceList(to, useVoice = false) {
+  // ✅ If voice mode, send voice message
+  if (useVoice) {
+    const voice = await generateVoice(
+      "اختر الخدمة: فحص عام، تنظيف الأسنان، تبييض الأسنان، حشو الأسنان، علاج الجذور، التركيبات، تقويم الأسنان، أو خلع الأسنان.",
+    );
+    await sendVoiceMessage(to, voice);
+    return;
+  }
+
+  // ✅ Otherwise, send interactive list
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -172,37 +275,65 @@ async function sendServiceList(to) {
     );
   } catch (err) {
     console.error("❌ Service list error:", err.message);
+    // Fallback to text if list fails
+    await sendTextMessage(
+      to,
+      "💊 اختر الخدمة: فحص عام، تنظيف، تبييض، حشو، علاج جذور، تركيبات، تقويم، أو خلع.",
+    );
   }
 }
 
 // ======================================================
-// 🔥 CANCEL BOOKING
+// 🔥 CANCEL BOOKING (VOICE-AWARE)
 // ======================================================
-async function askForCancellationPhone(to) {
-  await sendTextMessage(
-    to,
-    "📌 أرسل رقم الجوال المستخدم بالحجز لإلغاء الموعد.",
-  );
+async function askForCancellationPhone(to, useVoice = false) {
+  const message = "📌 أرسل رقم الجوال المستخدم بالحجز لإلغاء الموعد.";
+
+  if (useVoice) {
+    const voice = await generateVoice(message);
+    await sendVoiceMessage(to, voice);
+  } else {
+    await sendTextMessage(to, message);
+  }
 }
 
-async function processCancellation(to, phone) {
+async function processCancellation(to, phone, useVoice = false) {
   try {
     const booking = await findLastBookingByPhone(phone);
 
     if (!booking) {
-      await sendTextMessage(to, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
+      const message = "❌ لا يوجد حجز مرتبط بهذا الرقم.";
+      if (useVoice) {
+        const voice = await generateVoice(message);
+        await sendVoiceMessage(to, voice);
+      } else {
+        await sendTextMessage(to, message);
+      }
       return;
     }
 
     await updateBookingStatus(booking.id, "Canceled");
 
-    await sendTextMessage(
-      to,
-      `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-    );
+    const message = `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`;
+
+    if (useVoice) {
+      const voice = await generateVoice(
+        `تم إلغاء الحجز بنجاح. ${booking.name}، ${booking.service}، بتاريخ ${booking.appointment}`,
+      );
+      await sendVoiceMessage(to, voice);
+    } else {
+      await sendTextMessage(to, message);
+    }
   } catch (err) {
     console.error("❌ Cancel error:", err.message);
-    await sendTextMessage(to, "⚠️ حدث خطأ أثناء الإلغاء. حاول لاحقًا.");
+
+    const message = "⚠️ حدث خطأ أثناء الإلغاء. حاول لاحقًا.";
+    if (useVoice) {
+      const voice = await generateVoice(message);
+      await sendVoiceMessage(to, voice);
+    } else {
+      await sendTextMessage(to, message);
+    }
   }
 }
 
@@ -218,6 +349,10 @@ module.exports = {
   sendTextMessage,
   sendAppointmentOptions,
   sendServiceList,
+
+  // Voice
+  generateVoice,
+  sendVoiceMessage,
 
   // Supabase ONLY
   insertBookingToSupabase,
