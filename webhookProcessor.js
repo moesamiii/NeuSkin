@@ -1,4 +1,6 @@
+console.log("WEBHOOK HIT:", JSON.stringify(body, null, 2));
 /**
+ *
  * webhookProcessor.js
  * VOICE-ENABLED VERSION - FIXED
  */

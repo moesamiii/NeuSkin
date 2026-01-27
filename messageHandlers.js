@@ -1,50 +1,43 @@
 /**
- * messageHandlers.js (FINAL FIX)
+ * messageHandlers.js (FINAL FIX - ES6 VERSION)
  *
  * This file only RE-EXPORTS functions from other modules.
  * The actual detection logic exists in detectionHelpers.js
  * and the media sending logic exists in mediaService.js
  */
 
-const {
-  // INTENT DETECTION
+// INTENT DETECTION
+import {
   isLocationRequest,
   isOffersRequest,
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
   isCancelRequest,
-
-  // LANGUAGE & GREETING
   isEnglish,
   isGreeting,
   getGreeting,
-} = require("./detectionHelpers");
+} from "./detectionHelpers.js";
 
-const {
-  // BANNED WORDS
-  containsBanWords,
-  sendBanWordsResponse,
-} = require("./contentFilter");
+// BANNED WORDS
+import { containsBanWords, sendBanWordsResponse } from "./contentFilter.js";
 
-const {
-  // MEDIA SENDING
+// MEDIA SENDING
+import {
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
   sendImageMessage,
   sendOffersValidity,
-} = require("./mediaService");
+} from "./mediaService.js";
 
-const {
-  // AUDIO TRANSCRIPTION
-  transcribeAudio,
-} = require("./transcriptionService");
+// AUDIO TRANSCRIPTION
+import { transcribeAudio } from "./transcriptionService.js";
 
 // --------------------------------------------
-// EXPORT EVERYTHING IN ONE CLEAN OBJECT
+// EXPORT EVERYTHING
 // --------------------------------------------
-module.exports = {
+export {
   // Intent Detection
   isLocationRequest,
   isOffersRequest,
