@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         `;
 
         // Send WhatsApp via your API
-        await fetch("https://whatsapp-test-rosy.vercel.app/sendWhatsApp", {
+        await fetch("https://neu-skin.vercel.app/sendWhatsApp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
