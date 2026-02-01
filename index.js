@@ -1,44 +1,32 @@
 import express from "express";
 import axios from "axios";
 import Groq from "groq-sdk";
-import { createClient } from "@supabase/supabase-js";
 
 const app = express();
 app.use(express.json());
 
 // ==============================
-// 🔑 SUPABASE SETUP
+// 💾 IN-MEMORY STORAGE (replaces Supabase)
 // ==============================
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+const inMemoryStorage = {
+  bookings: [], // Store bookings here
+  settings: {
+    clinic_id: "default",
+    clinic_name: "عيادة ابتسامة",
+    booking_times: ["3 PM", "6 PM", "9 PM"],
+  },
+};
 
 // ✅ Global variable to store clinic settings
-let clinicSettings = null;
+let clinicSettings = inMemoryStorage.settings;
 
-// ✅ Load clinic settings from database
-async function loadClinicSettings() {
-  try {
-    const { data, error } = await supabase
-      .from("clinic_settings")
-      .select("*")
-      .eq("clinic_id", "default")
-      .single();
-
-    if (error) {
-      console.error("❌ Error loading clinic settings:", error);
-      return;
-    }
-
-    clinicSettings = data;
-    console.log("✅ Clinic settings loaded:", clinicSettings?.clinic_name);
-  } catch (err) {
-    console.error("❌ Exception loading clinic settings:", err.message);
-  }
+// ✅ Load clinic settings (now just uses in-memory data)
+function loadClinicSettings() {
+  clinicSettings = inMemoryStorage.settings;
+  console.log("✅ Clinic settings loaded:", clinicSettings.clinic_name);
 }
 
-// ✅ Load settings on startup
+// Load settings on startup
 loadClinicSettings();
 
 // ==============================
@@ -190,61 +178,73 @@ setInterval(() => {
   }
 }, 120000); // 2 minutes
 
+// ==============================
+// 💾 IN-MEMORY BOOKING FUNCTIONS (replaces Supabase)
+// ==============================
+
 async function insertBookingToSupabase(booking) {
   try {
-    await supabase.from("bookings").insert([
-      {
-        name: booking.name,
-        phone: booking.phone,
-        service: booking.service,
-        appointment: booking.appointment,
-        status: "new",
-      },
-    ]);
+    // Generate unique ID
+    const id = Date.now().toString();
+
+    // Add booking to in-memory storage
+    const newBooking = {
+      id,
+      name: booking.name,
+      phone: booking.phone,
+      service: booking.service,
+      appointment: booking.appointment,
+      status: "new",
+      created_at: new Date().toISOString(),
+    };
+
+    inMemoryStorage.bookings.push(newBooking);
+
+    console.log("✅ Booking saved:", newBooking);
+    console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
+
     return true;
   } catch (err) {
-    console.error("❌ Supabase error:", err.message);
+    console.error("❌ Storage error:", err.message);
     return false;
   }
 }
 
-// ✅ NEW: Find booking by phone
+// ✅ Find booking by phone
 async function findBookingByPhone(phone) {
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", phone)
-      .eq("status", "new")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Find the most recent booking with matching phone and status "new"
+    const matchingBookings = inMemoryStorage.bookings
+      .filter((b) => b.phone === phone && b.status === "new")
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    if (error) {
-      console.error("❌ Find booking error:", error);
+    if (matchingBookings.length === 0) {
+      console.log("❌ No booking found for phone:", phone);
       return null;
     }
 
-    return data;
+    console.log("✅ Booking found:", matchingBookings[0]);
+    return matchingBookings[0];
   } catch (err) {
     console.error("❌ Find booking exception:", err.message);
     return null;
   }
 }
 
-// ✅ NEW: Cancel booking
+// ✅ Cancel booking
 async function cancelBooking(id) {
   try {
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "canceled" })
-      .eq("id", id);
+    const booking = inMemoryStorage.bookings.find((b) => b.id === id);
 
-    if (error) {
-      console.error("❌ Cancel booking error:", error);
+    if (!booking) {
+      console.log("❌ Booking not found with id:", id);
       return false;
     }
 
+    booking.status = "canceled";
+    booking.canceled_at = new Date().toISOString();
+
+    console.log("✅ Booking canceled:", booking);
     return true;
   } catch (err) {
     console.error("❌ Cancel booking exception:", err.message);
@@ -284,7 +284,8 @@ async function askAI(userMessage) {
     });
 
     return completion.choices[0]?.message?.content || "";
-  } catch {
+  } catch (err) {
+    console.error("❌ AI error:", err.message);
     return "⚠️ حدث خطأ.";
   }
 }
@@ -296,11 +297,15 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 async function sendTextMessage(to, text) {
-  await axios.post(
-    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-    { messaging_product: "whatsapp", to, text: { body: text } },
-    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
-  );
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      { messaging_product: "whatsapp", to, text: { body: text } },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+    );
+  } catch (err) {
+    console.error("❌ Send message error:", err.message);
+  }
 }
 
 // ✅ Send image message
@@ -344,7 +349,7 @@ async function sendAppointmentOptions(to) {
     "9 PM",
   ];
 
-  // ✅ Build buttons dynamically from database settings
+  // ✅ Build buttons dynamically from settings
   const buttons = bookingTimes.slice(0, 3).map((time) => ({
     type: "reply",
     reply: {
@@ -402,7 +407,7 @@ async function sendServiceList(to) {
 // 🧠 BOOKING & CANCEL STATE
 // ==============================
 const tempBookings = {};
-const cancelSessions = {}; // NEW: Track users waiting to cancel
+const cancelSessions = {}; // Track users waiting to cancel
 
 // ✅ Booking intent detection
 function isBookingRequest(text) {
@@ -421,7 +426,7 @@ function isDoctorRequest(text) {
   );
 }
 
-// ✅ NEW: Reset/Start request detection
+// ✅ Reset/Start request detection
 function isResetRequest(text) {
   return /(reset|start|عيد من اول|ابدا من جديد|ابدأ من جديد|من البداية|بداية جديدة|restart|new chat|ابدا|ابدأ|عيد)/i.test(
     text,
@@ -637,13 +642,44 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
+  console.log("🔍 Webhook verification request:");
+  console.log("Mode:", mode);
+  console.log("Token received:", token);
+  console.log("Token expected:", process.env.VERIFY_TOKEN);
+  console.log("Challenge:", challenge);
+
   if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
+    console.log("✅ Webhook verification successful!");
     res.status(200).send(challenge);
   } else {
+    console.log("❌ Webhook verification failed!");
     res.sendStatus(403);
   }
 });
 
+// ✅ Health check endpoint
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "WhatsApp Bot is running",
+    clinic: clinicSettings.clinic_name,
+    bookings_count: inMemoryStorage.bookings.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ✅ View all bookings (for testing - remove in production!)
+app.get("/bookings", (req, res) => {
+  res.json({
+    total: inMemoryStorage.bookings.length,
+    bookings: inMemoryStorage.bookings,
+  });
+});
+
 // ==============================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 Server running on port", PORT));
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port", PORT);
+  console.log("🏥 Clinic:", clinicSettings.clinic_name);
+  console.log("💾 Using in-memory storage (data will be lost on restart)");
+});
