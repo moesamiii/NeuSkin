@@ -13,6 +13,7 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 // ==============================
 // 🎙️ TEXT-TO-SPEECH
 // ==============================
+
 export async function convertTextToSpeech(text, lang = "ar") {
   try {
     console.log("🎤 Converting text to speech:", text.substring(0, 50));
@@ -20,7 +21,7 @@ export async function convertTextToSpeech(text, lang = "ar") {
     // Choose voice based on language
     const voiceId =
       lang === "ar"
-        ? "pFZP5JQG7iQjIQuC4Bku" // Arabic voice
+        ? "yXEnnEln9armDCyhkXcA" // Arabic voice
         : "21m00Tcm4TlvDq8ikWAM"; // English voice
 
     const audio = await elevenLabsClient.generate({
