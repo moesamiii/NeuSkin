@@ -21,7 +21,7 @@ export async function convertTextToSpeech(text, lang = "ar") {
     // Choose voice based on language
     const voiceId =
       lang === "ar"
-        ? "yXEnnEln9armDCyhkXcA" // Arabic voice
+        ? "pFZP5JQG7iQjIQuC4Bku" // Arabic voice
         : "21m00Tcm4TlvDq8ikWAM"; // English voice
 
     const audio = await elevenLabsClient.generate({
