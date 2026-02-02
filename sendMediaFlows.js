@@ -1,40 +1,42 @@
 /**
  * sendMediaFlows.js
  *
- * Purpose:
- * - Handle media message flows (offers, doctors, etc.).
- * - Keep WhatsApp message sending logic modular and reusable.
- * - Integrate with booking via helpers.js.
+ * Media flows (offers, doctors, booking buttons)
+ * Compatible with index.js WhatsApp setup
  */
 
 import axios from "axios";
-import { sendTextMessage, sendServiceList, saveBooking } from "./helpers.js";
+import { sendTextMessage, sendServiceList } from "./helpers.js";
 import { OFFER_IMAGES, DOCTOR_IMAGES } from "./mediaAssets.js";
 import { sendImageMessage } from "./messageHandlers.js";
 
-// ---------------------------------------------
-// ⏱️ Helper: delay
-// ---------------------------------------------
+// ==============================
+// ENV
+// ==============================
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
+// ==============================
+// Helper: delay
+// ==============================
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ---------------------------------------------
-// 📱 Send Booking Start Button
-// ---------------------------------------------
+// ==============================
+// Booking Start Button
+// ==============================
 async function sendBookingStartButton(to, language = "ar") {
   try {
-    console.log(`📤 DEBUG => Sending booking start button to ${to}`);
-
     const bodyText =
       language === "en"
-        ? "📅 Ready to book your appointment? Click the button below to start!"
-        : "📅 جاهز لحجز موعدك؟ اضغط على الزر بالأسفل للبدء!";
+        ? "📅 Ready to book your appointment? Click below to start!"
+        : "📅 جاهز لحجز موعدك؟ اضغط بالأسفل للبدء!";
 
     const buttonText = language === "en" ? "Start Booking" : "بدء الحجز";
 
     await axios.post(
-      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
         to,
@@ -57,152 +59,108 @@ async function sendBookingStartButton(to, language = "ar") {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
           "Content-Type": "application/json",
         },
       },
     );
-
-    console.log("✅ DEBUG => Booking start button sent successfully");
   } catch (err) {
-    console.error("❌ DEBUG => Error sending booking button:", err.message);
-
-    // Fallback
+    // fallback
     await sendTextMessage(
       to,
       language === "en"
-        ? "📅 Ready to book your appointment? Let's start!"
-        : "📅 جاهز لحجز موعدك؟ لنبدأ!",
+        ? "📅 Ready to book your appointment?"
+        : "📅 جاهز لحجز موعدك؟",
     );
     await delay(600);
     await sendServiceList(to);
   }
 }
 
-// ---------------------------------------------
-// 📅 Start booking flow (entry point)
-// ---------------------------------------------
+// ==============================
+// Start Booking Intro
+// ==============================
 async function sendStartBookingButton(to, language = "ar") {
-  try {
-    console.log(`📤 DEBUG => Sending start booking intro to ${to}`);
+  await sendTextMessage(
+    to,
+    language === "en"
+      ? "🎉 I can help you book an appointment."
+      : "🎉 يمكنني مساعدتك في حجز موعد.",
+  );
 
-    const introText =
-      language === "en"
-        ? "🎉 Welcome! I can help you book an appointment at our clinic."
-        : "🎉 أهلاً وسهلاً! يمكنني مساعدتك في حجز موعد في عيادتنا.";
-
-    await sendTextMessage(to, introText);
-    await delay(800);
-
-    await sendBookingStartButton(to, language);
-
-    console.log("✅ DEBUG => Booking start button sent successfully");
-  } catch (err) {
-    console.error("❌ DEBUG => Error starting booking:", err.message);
-  }
+  await delay(700);
+  await sendBookingStartButton(to, language);
 }
 
-// ---------------------------------------------
-// 🎁 Send Offers (with booking button)
-// ---------------------------------------------
+// ==============================
+// Offers Flow
+// ==============================
 async function sendOffersImages(to, language = "ar") {
-  try {
-    console.log(`📤 DEBUG => Sending offers & services flow to ${to}...`);
+  await sendTextMessage(
+    to,
+    language === "en" ? "💊 Our current offers:" : "💊 عروضنا الحالية:",
+  );
 
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "💊 Here are our current offers and services:"
-        : "💊 هذه عروضنا وخدماتنا الحالية:",
-    );
+  await delay(600);
 
-    await delay(600);
-
-    for (let i = 0; i < OFFER_IMAGES.length; i++) {
-      await sendImageMessage(to, OFFER_IMAGES[i]);
-      if (i < OFFER_IMAGES.length - 1) await delay(900);
-    }
-
-    await delay(1000);
-    await sendBookingStartButton(to, language);
-
-    console.log("✅ Offers flow completed — booking button shown.");
-  } catch (err) {
-    console.error("❌ DEBUG => Error in offers flow:", err.message);
+  for (let i = 0; i < OFFER_IMAGES.length; i++) {
+    await sendImageMessage(to, OFFER_IMAGES[i]);
+    if (i < OFFER_IMAGES.length - 1) await delay(900);
   }
+
+  await delay(900);
+  await sendBookingStartButton(to, language);
 }
 
-// ---------------------------------------------
-// 👨‍⚕️ Send Doctors & Booking Flow
-// ---------------------------------------------
+// ==============================
+// Doctors Flow
+// ==============================
 async function sendDoctorsImages(to, language = "ar") {
-  try {
-    console.log(`📤 DEBUG => Sending doctors flow to ${to}...`);
+  await sendTextMessage(
+    to,
+    language === "en" ? "👨‍⚕️ Our medical team:" : "👨‍⚕️ فريقنا الطبي:",
+  );
 
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "👨‍⚕️ Meet our professional medical team:"
-        : "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:",
-    );
+  await delay(600);
 
-    await delay(600);
-
-    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
-      await sendImageMessage(to, DOCTOR_IMAGES[i]);
-      if (i < DOCTOR_IMAGES.length - 1) await delay(900);
-    }
-
-    await delay(1000);
-    await sendBookingStartButton(to, language);
-
-    console.log("✅ Doctors flow completed — booking button shown.");
-  } catch (err) {
-    console.error("❌ DEBUG => Error in doctors flow:", err.message);
+  for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
+    await sendImageMessage(to, DOCTOR_IMAGES[i]);
+    if (i < DOCTOR_IMAGES.length - 1) await delay(900);
   }
+
+  await delay(900);
+  await sendBookingStartButton(to, language);
 }
 
-// ---------------------------------------------
-// 🧾 Handle booking interaction
-// ---------------------------------------------
-async function handleBookingFlow(to, userData = {}, language = "ar") {
-  try {
-    console.log(
-      `📥 DEBUG => Booking flow triggered for ${to} (button clicked)`,
-    );
+// ==============================
+// Booking Flow Entry
+// ==============================
+async function handleBookingFlow(to, language = "ar") {
+  await sendTextMessage(
+    to,
+    language === "en"
+      ? "🎉 Please choose a service:"
+      : "🎉 يرجى اختيار الخدمة:",
+  );
 
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "🎉 Great! Let's book your appointment. Please choose a service:"
-        : "🎉 ممتاز! لنحجز موعدك. يرجى اختيار الخدمة:",
-    );
-
-    await delay(600);
-    await sendServiceList(to);
-
-    console.log("✅ Booking flow initiated — awaiting service selection.");
-  } catch (err) {
-    console.error("❌ DEBUG => Failed to handle booking flow:", err.message);
-  }
+  await delay(600);
+  await sendServiceList(to);
 }
 
-// ---------------------------------------------
-// 🆕 Quick Booking Button
-// ---------------------------------------------
+// ==============================
+// Quick Booking Button
+// ==============================
 async function sendQuickBookingButton(to, language = "ar") {
   try {
-    console.log(`📤 DEBUG => Sending quick booking button to ${to}`);
-
     const bodyText =
       language === "en"
-        ? "💫 Need to book an appointment quickly? Click below to start!"
-        : "💫 تحتاج لحجز موعد بسرعة؟ اضغط بالأسفل للبدء!";
+        ? "💫 Book quickly using the button below"
+        : "💫 احجز بسرعة باستخدام الزر أدناه";
 
     const buttonText = language === "en" ? "Book Now" : "احجز الآن";
 
     await axios.post(
-      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
         to,
@@ -225,26 +183,19 @@ async function sendQuickBookingButton(to, language = "ar") {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
           "Content-Type": "application/json",
         },
       },
     );
-
-    console.log("✅ DEBUG => Quick booking button sent successfully");
   } catch (err) {
-    console.error(
-      "❌ DEBUG => Error sending quick booking button:",
-      err.message,
-    );
-
-    await handleBookingFlow(to, {}, language);
+    await handleBookingFlow(to, language);
   }
 }
 
-// ---------------------------------------------
-// ✅ EXPORTS (ESM)
-// ---------------------------------------------
+// ==============================
+// EXPORTS
+// ==============================
 export {
   sendOffersImages,
   sendDoctorsImages,
