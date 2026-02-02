@@ -19,6 +19,8 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 // ------------------------------------------------------
 async function transcribeAudio(mediaId, from) {
   try {
+    console.log(`🎙️ Starting transcription for ${from}, media ID: ${mediaId}`);
+
     // STEP 1 — GET MEDIA URL
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
@@ -28,13 +30,23 @@ async function transcribeAudio(mediaId, from) {
     );
 
     const mediaUrl = mediaUrlResponse.data?.url;
-    if (!mediaUrl) return null;
+
+    if (!mediaUrl) {
+      console.log("❌ No media URL found");
+      return null;
+    }
+
+    console.log("✅ Media URL retrieved");
 
     // STEP 2 — DOWNLOAD MEDIA
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
     });
+
+    console.log(
+      `✅ Audio downloaded, size: ${audioResponse.data.byteLength} bytes`,
+    );
 
     // STEP 3 — SEND TO GROQ WHISPER
     const form = new FormData();
@@ -60,7 +72,9 @@ async function transcribeAudio(mediaId, from) {
     const text = result.data?.text?.trim() || null;
 
     if (text) {
-      console.log("🎧 TRANSCRIBED:", text);
+      console.log(`🎧 TRANSCRIBED (${from}): "${text}"`);
+    } else {
+      console.log("⚠️ Empty transcription result");
     }
 
     return text;

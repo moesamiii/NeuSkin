@@ -13,6 +13,8 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 // ==============================
 async function transcribeAudio(mediaId, from) {
   try {
+    console.log(`🎙️ Starting transcription for ${from}, media ID: ${mediaId}`);
+
     // 1. Get media URL from WhatsApp
     const mediaResponse = await axios.get(
       `https://graph.facebook.com/v19.0/${mediaId}`,
@@ -23,6 +25,13 @@ async function transcribeAudio(mediaId, from) {
 
     const mediaUrl = mediaResponse.data.url;
 
+    if (!mediaUrl) {
+      console.log("❌ No media URL found");
+      return null;
+    }
+
+    console.log("✅ Media URL retrieved");
+
     // 2. Download the audio file
     const audioResponse = await axios.get(mediaUrl, {
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
@@ -30,6 +39,8 @@ async function transcribeAudio(mediaId, from) {
     });
 
     const audioBuffer = Buffer.from(audioResponse.data);
+
+    console.log(`✅ Audio downloaded, size: ${audioBuffer.length} bytes`);
 
     // 3. Send to Groq Whisper for transcription
     const Groq = (await import("groq-sdk")).default;
@@ -119,6 +130,7 @@ async function handleAudioMessage(
   sendServiceList,
   sendDoctorInfo,
   tempBookings,
+  cancelSessions,
 ) {
   try {
     const mediaId = message?.audio?.id;
@@ -151,9 +163,16 @@ async function handleAudioMessage(
 
     // 1. Check if it's a cancel request
     if (isCancelRequest(transcript) && !tempBookings[from]) {
-      // User will be handled by the cancel flow in index.js
-      // We'll treat this as a text message
-      return { type: "text", text: transcript };
+      console.log("🚫 Cancel request detected from voice!");
+      cancelSessions[from] = true;
+
+      // Clear any ongoing booking
+      if (tempBookings[from]) {
+        delete tempBookings[from];
+      }
+
+      await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
+      return;
     }
 
     // 2. Check if it's a doctor request
