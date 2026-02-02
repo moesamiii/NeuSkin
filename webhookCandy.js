@@ -25,6 +25,7 @@ async function loadClinicSettings() {
     }
 
     clinicSettings = data;
+    console.log("✅ Clinic settings loaded:", clinicSettings?.clinic_name);
   } catch (err) {
     console.error("❌ Exception loading clinic settings:", err.message);
   }
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
     );
 
     const whatsappData = await whatsappResponse.json();
-    console.log("WhatsApp sent:", whatsappData);
+    console.log("✅ WhatsApp sent:", whatsappData);
 
     return res.status(200).json({
       success: true,
@@ -95,7 +96,7 @@ export default async function handler(req, res) {
       whatsappResult: whatsappData,
     });
   } catch (err) {
-    console.error("ERROR:", err);
+    console.error("❌ ERROR:", err);
     return res.status(500).json({ error: err.message });
   }
 }
