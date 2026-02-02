@@ -2,29 +2,28 @@ import express from "express";
 import axios from "axios";
 import Groq from "groq-sdk";
 import { handleAudioMessage } from "./webhookProcessor.js";
-import {
-  detectSheetName,
-  saveBooking,
-  getAllBookings,
-  testGoogleConnection,
-} from "./sheetsHelper.js";
 
 const app = express();
 app.use(express.json());
 
 // ==============================
-// 💾 GOOGLE SHEETS STORAGE
+// 💾 IN-MEMORY STORAGE (replaces Supabase)
 // ==============================
-
-// ✅ Global variable to store clinic settings
-let clinicSettings = {
-  clinic_id: "default",
-  clinic_name: "عيادة ابتسامة",
-  booking_times: ["3 PM", "6 PM", "9 PM"],
+const inMemoryStorage = {
+  bookings: [], // Store bookings here
+  settings: {
+    clinic_id: "default",
+    clinic_name: "عيادة ابتسامة",
+    booking_times: ["3 PM", "6 PM", "9 PM"],
+  },
 };
 
-// ✅ Load clinic settings
+// ✅ Global variable to store clinic settings
+let clinicSettings = inMemoryStorage.settings;
+
+// ✅ Load clinic settings (now just uses in-memory data)
 function loadClinicSettings() {
+  clinicSettings = inMemoryStorage.settings;
   console.log("✅ Clinic settings loaded:", clinicSettings.clinic_name);
 }
 
@@ -181,60 +180,70 @@ setInterval(() => {
 }, 120000); // 2 minutes
 
 // ==============================
-// 💾 GOOGLE SHEETS BOOKING FUNCTIONS
+// 💾 IN-MEMORY BOOKING FUNCTIONS (replaces Supabase)
 // ==============================
 
-async function insertBookingToGoogleSheets(booking) {
+async function insertBookingToSupabase(booking) {
   try {
-    await saveBooking({
+    // Generate unique ID
+    const id = Date.now().toString();
+
+    // Add booking to in-memory storage
+    const newBooking = {
+      id,
       name: booking.name,
       phone: booking.phone,
       service: booking.service,
       appointment: booking.appointment,
-    });
+      status: "new",
+      created_at: new Date().toISOString(),
+    };
 
-    console.log("✅ Booking saved to Google Sheets:", booking);
+    inMemoryStorage.bookings.push(newBooking);
+
+    console.log("✅ Booking saved:", newBooking);
+    console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
+
     return true;
   } catch (err) {
-    console.error("❌ Google Sheets save error:", err.message);
+    console.error("❌ Storage error:", err.message);
     return false;
   }
 }
 
-// ✅ Find booking by phone from Google Sheets
+// ✅ Find booking by phone
 async function findBookingByPhone(phone) {
   try {
-    const allBookings = await getAllBookings();
+    // Find the most recent booking with matching phone and status "new"
+    const matchingBookings = inMemoryStorage.bookings
+      .filter((b) => b.phone === phone && b.status === "new")
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    // Find the most recent booking with matching phone
-    const matchingBooking = allBookings
-      .filter((b) => b.phone === phone)
-      .sort((a, b) => new Date(b.time) - new Date(a.time))[0];
-
-    if (!matchingBooking) {
+    if (matchingBookings.length === 0) {
       console.log("❌ No booking found for phone:", phone);
       return null;
     }
 
-    console.log("✅ Booking found:", matchingBooking);
-    return matchingBooking;
+    console.log("✅ Booking found:", matchingBookings[0]);
+    return matchingBookings[0];
   } catch (err) {
     console.error("❌ Find booking exception:", err.message);
     return null;
   }
 }
 
-// ✅ Cancel booking (marks it in Google Sheets by adding "CANCELED -" prefix)
-async function cancelBooking(booking) {
+// ✅ Cancel booking
+async function cancelBooking(id) {
   try {
-    // Note: This updates the booking with a CANCELED prefix
-    // You may want to add a separate column for status in your sheet
-    await saveBooking({
-      name: `CANCELED - ${booking.name}`,
-      phone: booking.phone,
-      service: booking.service,
-      appointment: booking.appointment,
-    });
+    const booking = inMemoryStorage.bookings.find((b) => b.id === id);
+
+    if (!booking) {
+      console.log("❌ Booking not found with id:", id);
+      return false;
+    }
+
+    booking.status = "canceled";
+    booking.canceled_at = new Date().toISOString();
 
     console.log("✅ Booking canceled:", booking);
     return true;
@@ -511,7 +520,7 @@ app.post("/webhook", async (req, res) => {
         const booking = tempBookings[from];
         booking.service = id.replace("service_", "");
 
-        await insertBookingToGoogleSheets(booking);
+        await insertBookingToSupabase(booking);
 
         await sendTextMessage(
           from,
@@ -590,7 +599,7 @@ app.post("/webhook", async (req, res) => {
         }
 
         // Cancel it
-        const success = await cancelBooking(booking);
+        const success = await cancelBooking(booking.id);
 
         if (success) {
           await sendTextMessage(
@@ -678,95 +687,28 @@ app.get("/webhook", (req, res) => {
 });
 
 // ✅ Health check endpoint
-app.get("/", async (req, res) => {
-  const allBookings = await getAllBookings();
+app.get("/", (req, res) => {
   res.json({
     status: "ok",
     message: "WhatsApp Bot is running",
     clinic: clinicSettings.clinic_name,
-    bookings_count: allBookings.length,
-    storage: "Google Sheets",
+    bookings_count: inMemoryStorage.bookings.length,
     timestamp: new Date().toISOString(),
   });
 });
 
-// ✅ View all bookings
-app.get("/bookings", async (req, res) => {
-  const allBookings = await getAllBookings();
+// ✅ View all bookings (for testing - remove in production!)
+app.get("/bookings", (req, res) => {
   res.json({
-    total: allBookings.length,
-    bookings: allBookings,
+    total: inMemoryStorage.bookings.length,
+    bookings: inMemoryStorage.bookings,
   });
 });
 
-// ✅ Campaign sending endpoint (for offers.html dashboard)
-app.post("/send-campaign", async (req, res) => {
-  // Enable CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  const { name, phone, service, appointment, image } = req.body || {};
-
-  if (!phone) {
-    return res
-      .status(400)
-      .json({ success: false, error: "Missing phone number" });
-  }
-
-  try {
-    console.log(`📤 Sending campaign to ${phone}...`);
-
-    // Get dynamic clinic name
-    const clinicName = clinicSettings?.clinic_name || "عيادة ابتسامة";
-
-    const messageText = `👋 مرحباً ${name || "عزيزي العميل"}!
-${appointment}
-
-من: ${clinicName}`;
-
-    if (image) {
-      // Send with image
-      await sendImageMessage(phone, image, messageText);
-    } else {
-      // Send text only
-      await sendTextMessage(phone, messageText);
-    }
-
-    console.log(`✅ Campaign sent successfully to ${phone}`);
-    return res.json({ success: true });
-  } catch (error) {
-    console.error("❌ Campaign send error:", error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ==============================
-// 🚀 SERVER STARTUP
 // ==============================
 const PORT = process.env.PORT || 3000;
-
-async function startServer() {
-  try {
-    // Test Google Sheets connection
-    await testGoogleConnection();
-
-    // Detect sheet name
-    await detectSheetName();
-
-    app.listen(PORT, () => {
-      console.log("🚀 Server running on port", PORT);
-      console.log("🏥 Clinic:", clinicSettings.clinic_name);
-      console.log("💾 Using Google Sheets for storage");
-    });
-  } catch (err) {
-    console.error("❌ Failed to start server:", err.message);
-    process.exit(1);
-  }
-}
-
-startServer();
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port", PORT);
+  console.log("🏥 Clinic:", clinicSettings.clinic_name);
+  console.log("💾 Using in-memory storage (data will be lost on restart)");
+});
