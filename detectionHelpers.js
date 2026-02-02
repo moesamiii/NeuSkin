@@ -1,42 +1,19 @@
 /**
- * detectionHelpers.js (FINAL – Doctors / Booking FIXED)
+ * detectionHelpers.js - Compatible with index.js (ES Module version)
  */
 
-const crypto = require("crypto");
-const { createClient } = require("@supabase/supabase-js");
+import crypto from "crypto";
 
-// ✅ Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+// In-memory clinic settings (matches index.js)
+let clinicSettings = {
+  clinic_name: "عيادة ابتسامة",
+  booking_times: ["3 PM", "6 PM", "9 PM"],
+};
 
-// ✅ Global variable to store clinic settings
-let clinicSettings = null;
-
-// ✅ Load clinic settings from database
-async function loadClinicSettings() {
-  try {
-    const { data, error } = await supabase
-      .from("clinic_settings")
-      .select("*")
-      .eq("clinic_id", "default")
-      .single();
-
-    if (error) {
-      console.error("❌ Error loading clinic settings:", error);
-      return;
-    }
-
-    clinicSettings = data;
-    console.log("✅ Clinic settings loaded:", clinicSettings?.clinic_name);
-  } catch (err) {
-    console.error("❌ Exception loading clinic settings:", err.message);
-  }
+// Allow updating settings from index.js
+export function setClinicSettings(settings) {
+  clinicSettings = settings;
 }
-
-// ✅ Load settings on module initialization
-loadClinicSettings();
 
 // ---------------------------------------------
 // 🔧 Helper Functions
@@ -55,9 +32,8 @@ function getRandomIndex(length) {
 // ---------------------------------------------
 // 👋 Greeting Detector and Random Response
 // ---------------------------------------------
-function getGreeting(isEnglish = false) {
-  // ✅ Get dynamic clinic name or use default
-  const clinicName = clinicSettings?.clinic_name || "Ibtisama Clinic";
+export function getGreeting(isEnglish = false) {
+  const clinicName = clinicSettings?.clinic_name || "عيادة ابتسامة";
 
   const englishGreetings = [
     `👋 Hello! Welcome to *${clinicName}*! How can I assist you today?`,
@@ -89,7 +65,7 @@ function getGreeting(isEnglish = false) {
   return replies[getRandomIndex(replies.length)];
 }
 
-function isGreeting(text = "") {
+export function isGreeting(text = "") {
   const greetingsKeywords = [
     "hi",
     "hello",
@@ -115,7 +91,7 @@ function isGreeting(text = "") {
 // ---------------------------------------------
 // 🗺️ Location Detection
 // ---------------------------------------------
-function isLocationRequest(text = "") {
+export function isLocationRequest(text = "") {
   const keywords = [
     "موقع",
     "مكان",
@@ -136,7 +112,7 @@ function isLocationRequest(text = "") {
 // ---------------------------------------------
 // 🎁 Offers Detection
 // ---------------------------------------------
-function isOffersRequest(text = "") {
+export function isOffersRequest(text = "") {
   const keywords = [
     "عروض",
     "عرض",
@@ -154,7 +130,7 @@ function isOffersRequest(text = "") {
   return includesAny(keywords, text);
 }
 
-function isOffersConfirmation(text = "") {
+export function isOffersConfirmation(text = "") {
   const normalizedText = String(text || "")
     .replace(/\u0640/g, "")
     .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "")
@@ -173,14 +149,13 @@ function isOffersConfirmation(text = "") {
     "send",
     "show",
   ];
-
   return patterns.some((p) => normalizedText.includes(p));
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Doctors Detection (IMPORTANT)
+// 👨‍⚕️ Doctors Detection
 // ---------------------------------------------
-function isDoctorsRequest(text = "") {
+export function isDoctorsRequest(text = "") {
   const keywords = [
     "الأطباء",
     "اطباء",
@@ -199,9 +174,9 @@ function isDoctorsRequest(text = "") {
 }
 
 // ---------------------------------------------
-// 📅 Booking Detection (ONLY booking words)
+// 📅 Booking Detection
 // ---------------------------------------------
-function isBookingRequest(text = "") {
+export function isBookingRequest(text = "") {
   const keywords = [
     "حجز",
     "احجز",
@@ -219,7 +194,7 @@ function isBookingRequest(text = "") {
 // ---------------------------------------------
 // ❌ Cancel Booking Detection
 // ---------------------------------------------
-function isCancelRequest(text = "") {
+export function isCancelRequest(text = "") {
   const keywords = [
     "الغاء",
     "إلغاء",
@@ -235,22 +210,31 @@ function isCancelRequest(text = "") {
 }
 
 // ---------------------------------------------
+// 🔄 Reset Detection
+// ---------------------------------------------
+export function isResetRequest(text = "") {
+  const keywords = [
+    "reset",
+    "start",
+    "restart",
+    "begin",
+    "عيد من اول",
+    "ابدا من جديد",
+    "ابدأ من جديد",
+    "من البداية",
+    "بداية جديدة",
+  ];
+  return includesAny(keywords, text);
+}
+
+// ---------------------------------------------
 // 🌐 Language Detection
 // ---------------------------------------------
-function isEnglish(text = "") {
+export function isEnglish(text = "") {
   const arabicPattern = /[\u0600-\u06FF]/;
   return !arabicPattern.test(text);
 }
 
-// ---------------------------------------------
-module.exports = {
-  isLocationRequest,
-  isOffersRequest,
-  isOffersConfirmation,
-  isDoctorsRequest,
-  isBookingRequest,
-  isCancelRequest,
-  isEnglish,
-  isGreeting,
-  getGreeting,
-};
+export function detectLanguage(text = "") {
+  return /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
+}
