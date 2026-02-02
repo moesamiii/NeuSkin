@@ -324,6 +324,9 @@
     </div>
 
     <script>
+      // ✅ Backend API URL - connect to index.js
+      const BACKEND_URL = window.location.origin;
+
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -332,10 +335,8 @@
         SUPABASE_KEY,
       );
 
-      // ✅ Global variable to store clinic settings
-      let clinicSettings = null;
+      let clinicSettings = { clinic_name: "عيادة ابتسامة" };
 
-      // ✅ Load clinic settings from database
       async function loadClinicSettings() {
         const { data, error } = await supabaseClient
           .from("clinic_settings")
@@ -343,40 +344,30 @@
           .eq("clinic_id", "default")
           .single();
 
-        if (error) {
-          console.error("Error loading clinic settings:", error);
-          return;
+        if (!error && data) {
+          clinicSettings = data;
+          applyClinicSettings();
         }
-
-        clinicSettings = data;
-        applyClinicSettings();
       }
 
-      // ✅ Apply clinic settings to the UI
       function applyClinicSettings() {
-        if (!clinicSettings) return;
-
         const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
 
-        // Update sidebar logo
         const sidebarClinicName = document.getElementById("sidebarClinicName");
         if (sidebarClinicName) {
           sidebarClinicName.textContent =
             clinicName.toUpperCase() + " DASHBOARD";
         }
 
-        // Update footer
         const footerText = document.getElementById("footerText");
         if (footerText) {
           const currentYear = new Date().getFullYear();
           footerText.textContent = `© ${currentYear} ${clinicName}`;
         }
 
-        // Update page title
         document.title = "التنبيهات - " + clinicName + " Dashboard";
       }
 
-      // 🔐 AUTH GUARD (RUN ON PAGE LOAD)
       if (localStorage.getItem("clinic_logged_in") !== "true") {
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
@@ -388,9 +379,6 @@
       let allBookings = [];
       let filteredBookings = [];
 
-      /* ------------------------------
-         🔐 ADMIN LOGIN
-      -------------------------------*/
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
@@ -406,7 +394,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
-          loadClinicSettings(); // ✅ Load settings after login
+          loadClinicSettings();
           loadNotifications();
         } else {
           const msg = document.getElementById("errorMsg");
@@ -424,41 +412,63 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
-        loadClinicSettings(); // ✅ Load clinic settings on startup
+        loadClinicSettings();
         loadNotifications();
         setInterval(loadNotifications, 30000);
       }
 
-      /* ------------------------------
-         🔄 LOAD FROM DATABASE
-      -------------------------------*/
+      // ✅ Load notifications from index.js backend (Google Sheets)
       async function loadNotifications() {
         try {
-          // ✅ LOAD DIRECTLY FROM SUPABASE DATABASE
-          const { data, error } = await supabaseClient
-            .from("bookings")
-            .select("*")
-            .order("time", { ascending: false });
+          console.log("📡 Loading bookings from backend...");
 
-          if (error) {
-            console.error("❌ Error loading notifications:", error);
-            return;
-          }
+          const response = await fetch(`${BACKEND_URL}/bookings`);
+          const data = await response.json();
 
-          allBookings = data || [];
+          allBookings = data.bookings || [];
           filteredBookings = [...allBookings];
 
+          console.log(
+            `✅ Loaded ${allBookings.length} bookings from Google Sheets`,
+          );
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
+
+          // Fallback to Supabase if backend fails
+          try {
+            console.log("🔄 Trying fallback to Supabase...");
+            const { data, error } = await supabaseClient
+              .from("bookings")
+              .select("*")
+              .order("time", { ascending: false });
+
+            if (!error && data) {
+              allBookings = data;
+              filteredBookings = [...allBookings];
+              console.log(
+                `✅ Loaded ${allBookings.length} bookings from Supabase (fallback)`,
+              );
+              renderNotifications();
+            }
+          } catch (fallbackError) {
+            console.error("❌ Fallback also failed:", fallbackError);
+          }
         }
       }
 
-      /* ------------------------------
-         🎨 RENDER UI
-      -------------------------------*/
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
+
+        if (filteredBookings.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #999;">
+              <i class="fa-solid fa-inbox" style="font-size: 48px; margin-bottom: 16px;"></i>
+              <p>لا توجد تنبيهات</p>
+            </div>
+          `;
+          return;
+        }
 
         container.innerHTML = filteredBookings
           .map((booking) => {
@@ -492,9 +502,6 @@
           .join("");
       }
 
-      /* ------------------------------
-         🕒 TIME AGO
-      -------------------------------*/
       function getTimeAgo(time) {
         if (!time) return "غير محدد";
 
@@ -516,9 +523,6 @@
         return bookingDate.toLocaleDateString("ar-EG");
       }
 
-      /* ------------------------------
-         🔍 SEARCH & FILTER
-      -------------------------------*/
       function filterNotifications() {
         const searchTerm = document
           .getElementById("searchInput")
@@ -582,9 +586,6 @@
         }
       }
 
-      /* ------------------------------
-         📥 DOWNLOAD EXCEL
-      -------------------------------*/
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
@@ -616,9 +617,6 @@
         URL.revokeObjectURL(url);
       });
 
-      /* ------------------------------
-         🌙 DARK MODE
-      -------------------------------*/
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
@@ -639,9 +637,6 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      /* ------------------------------
-         📱 MENU TOGGLE
-      -------------------------------*/
       document.getElementById("menuToggle").addEventListener("click", () => {
         document.getElementById("sidebar").classList.toggle("active");
       });
