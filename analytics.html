@@ -733,6 +733,35 @@
       let charts = {};
       let allData = [];
 
+      // ✅ FIXED: Helper function to normalize status values
+      function normalizeStatus(status) {
+        if (!status) return "new";
+        const s = status.toLowerCase().trim();
+
+        // Completed variations
+        if (s === "completed" || s === "مكتمل" || s === "booking complete") {
+          return "completed";
+        }
+
+        // Cancelled variations
+        if (s === "canceled" || s === "cancelled" || s === "ملغي") {
+          return "canceled";
+        }
+
+        // Contacted
+        if (s === "contacted") {
+          return "contacted";
+        }
+
+        // SentNoReply
+        if (s === "sentnoreply") {
+          return "sentnoreply";
+        }
+
+        // Default to new for anything else
+        return "new";
+      }
+
       // ✅ Load clinic settings from database
       async function loadClinicSettings() {
         const { data, error } = await supabaseClient
@@ -812,14 +841,16 @@
         }
       }
 
-      // Update statistics cards
+      // ✅ FIXED: Update statistics cards with normalized status
       function updateStats() {
         const total = allData.length;
+
+        // Use normalized status
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل",
+          (b) => normalizeStatus(b.status) === "completed",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي",
+          (b) => normalizeStatus(b.status) === "canceled",
         ).length;
         const pending = total - completed - cancelled;
 
@@ -965,16 +996,16 @@
         });
       }
 
-      // 3. Status Pie Chart
+      // ✅ FIXED: 3. Status Pie Chart with normalized status
       function createStatusPieChart() {
         const ctx = document.getElementById("statusPieChart").getContext("2d");
         if (charts.statusPie) charts.statusPie.destroy();
 
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل",
+          (b) => normalizeStatus(b.status) === "completed",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي",
+          (b) => normalizeStatus(b.status) === "canceled",
         ).length;
         const pending = allData.length - completed - cancelled;
 
@@ -1221,14 +1252,14 @@
         });
       }
 
-      // Update AI Insights
+      // ✅ FIXED: Update AI Insights with normalized status
       function updateInsights() {
         const total = allData.length;
         const completed = allData.filter(
-          (b) => b.status === "Completed" || b.status === "مكتمل",
+          (b) => normalizeStatus(b.status) === "completed",
         ).length;
         const cancelled = allData.filter(
-          (b) => b.status === "Canceled" || b.status === "ملغي",
+          (b) => normalizeStatus(b.status) === "canceled",
         ).length;
 
         // Most popular service
@@ -1395,10 +1426,10 @@
           // Stats Summary
           const total = allData.length;
           const completed = allData.filter(
-            (b) => b.status === "Completed" || b.status === "مكتمل",
+            (b) => normalizeStatus(b.status) === "completed",
           ).length;
           const cancelled = allData.filter(
-            (b) => b.status === "Canceled" || b.status === "ملغي",
+            (b) => normalizeStatus(b.status) === "canceled",
           ).length;
           const uniqueCustomers = new Set(allData.map((b) => b.phone)).size;
 

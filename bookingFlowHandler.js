@@ -100,9 +100,12 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     await insertBookingToSupabase(booking);
 
     // Confirmation
+
     await sendTextMessage(
       from,
-      `✅ تم حفظ حجزك بنجاح:\n\n👤 الاسم: ${booking.name}\n📱 الجوال: ${booking.phone}\n💊 الخدمة: ${booking.service}\n📅 الموعد: ${booking.appointment}`,
+      `✅ تم حفظ حجزك بنجاح:\n\n👤 الاسم: ${booking.name}\n📱 الجوال: ${booking.phone}\n💊 الخدمة: ${booking.service}${
+        booking.appointment ? `\n📅 الموعد: ${booking.appointment}` : ""
+      }`,
     );
 
     delete tempBookings[from];
