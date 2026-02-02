@@ -223,9 +223,12 @@ async function handleServiceStep(text, from, tempBookings) {
 
   await insertBookingToSupabase(booking);
 
+  // ✅ SAFE CONFIRMATION MESSAGE (no undefined)
   await sendTextMessage(
     from,
-    `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+    `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}${
+      booking.appointment ? `\n📅 ${booking.appointment}` : ""
+    }`,
   );
 
   delete tempBookings[from];
