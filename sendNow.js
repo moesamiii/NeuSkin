@@ -32,8 +32,7 @@ async function sendMessage() {
       );
     }
 
-    // ✅ Changed to v19.0 to match index.js
-    const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+    const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
 
     const payload = {
       messaging_product: "whatsapp",
