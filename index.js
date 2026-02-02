@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import Groq from "groq-sdk";
-import { handleVoiceMessage } from "./voiceHandler.js";
+import { handleAudioMessage } from "./webhookProcessor.js";
 
 const app = express();
 app.use(express.json());
@@ -473,11 +473,21 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ NEW: VOICE MESSAGE HANDLING
+    // ✅ VOICE MESSAGE HANDLING
     if (message.type === "audio") {
       console.log("🎙️ Voice message received from", from);
       try {
-        await handleVoiceMessage(message, from, askAI);
+        await handleAudioMessage(
+          message,
+          from,
+          askAI,
+          sendTextMessage,
+          sendAppointmentOptions,
+          sendServiceList,
+          sendDoctorInfo,
+          tempBookings,
+          cancelSessions,
+        );
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       } catch (err) {

@@ -1,32 +1,57 @@
 /**
  * webhookProcessor.js
- *
- * SAME FILE – ESM FIX ONLY
+ * Voice message handling for the WhatsApp bot
  */
 
-import {
-  askAI,
-  validateNameWithAI,
-  sendTextMessage,
-  sendServiceList,
-  sendAppointmentOptions,
-  saveBooking,
-  askForCancellationPhone,
-} from "./helpers.js";
+import axios from "axios";
 
-import {
-  transcribeAudio,
-  sendLocationMessages,
-  sendOffersImages,
-  sendDoctorsImages,
-  isLocationRequest,
-  isOffersRequest,
-  isDoctorsRequest,
-  isCancelRequest,
-  isEnglish,
-} from "./messageHandlers.js";
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
-/* 🔽🔽🔽 EVERYTHING BELOW IS 100% UNCHANGED 🔽🔽🔽 */
+// ==============================
+// 🎙️ AUDIO TRANSCRIPTION
+// ==============================
+async function transcribeAudio(mediaId, from) {
+  try {
+    // 1. Get media URL from WhatsApp
+    const mediaResponse = await axios.get(
+      `https://graph.facebook.com/v19.0/${mediaId}`,
+      {
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      },
+    );
+
+    const mediaUrl = mediaResponse.data.url;
+
+    // 2. Download the audio file
+    const audioResponse = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      responseType: "arraybuffer",
+    });
+
+    const audioBuffer = Buffer.from(audioResponse.data);
+
+    // 3. Send to Groq Whisper for transcription
+    const Groq = (await import("groq-sdk")).default;
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const transcription = await groq.audio.transcriptions.create({
+      file: new File([audioBuffer], "audio.ogg", { type: "audio/ogg" }),
+      model: "whisper-large-v3",
+      language: "ar", // Arabic by default, Whisper auto-detects if wrong
+    });
+
+    console.log(`🎙️ Transcription for ${from}:`, transcription.text);
+    return transcription.text;
+  } catch (err) {
+    console.error("❌ Transcription error:", err.message);
+    return null;
+  }
+}
+
+// ==============================
+// 🔧 HELPER FUNCTIONS
+// ==============================
 
 function normalizeArabicDigits(input = "") {
   return input
@@ -68,43 +93,45 @@ function isQuestion(text = "") {
   );
 }
 
-function containsFriday(text = "") {
-  const fridayWords = ["الجمعة", "Friday", "friday"];
-  return fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()));
+function isBookingRequest(text) {
+  return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
 }
 
-async function sendBookingConfirmation(to, booking) {
-  await sendTextMessage(
-    to,
-    `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`,
+function isCancelRequest(text) {
+  return /(الغاء|إلغاء|الغي|كنسل|cancel)/i.test(text);
+}
+
+function isDoctorRequest(text) {
+  return /(طبيب|اطباء|أطباء|الاطباء|الأطباء|دكتور|دكاترة|doctor|doctors)/i.test(
+    text,
   );
 }
 
-function getSession(from) {
-  if (!global.userSessions) {
-    global.userSessions = {};
-  }
-  if (!global.userSessions[from]) {
-    global.userSessions[from] = {
-      waitingForCancelPhone: false,
-      waitingForOffersConfirmation: false,
-    };
-  }
-  return global.userSessions[from];
-}
-
-async function handleAudioMessage(message, from) {
+// ==============================
+// 📩 AUDIO MESSAGE HANDLER
+// ==============================
+async function handleAudioMessage(
+  message,
+  from,
+  askAI,
+  sendTextMessage,
+  sendAppointmentOptions,
+  sendServiceList,
+  sendDoctorInfo,
+  tempBookings,
+) {
   try {
-    const tempBookings = (global.tempBookings = global.tempBookings || {});
-    const session = getSession(from);
-
     const mediaId = message?.audio?.id;
-    if (!mediaId) return;
+    if (!mediaId) {
+      console.log("❌ No media ID found in audio message");
+      return;
+    }
 
+    console.log(
+      `🎙️ Processing audio message from ${from}, media ID: ${mediaId}`,
+    );
+
+    // Transcribe the audio
     const transcript = await transcribeAudio(mediaId, from);
 
     if (!transcript) {
@@ -115,82 +142,73 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    if (isCancelRequest(transcript)) {
-      session.waitingForCancelPhone = true;
-      delete tempBookings[from];
-      await askForCancellationPhone(from);
+    console.log(`✅ Transcribed: "${transcript}"`);
+
+    // Send transcription confirmation to user
+    await sendTextMessage(from, `🎙️ فهمت: "${transcript}"`);
+
+    // Now process the transcript as if it was a text message
+
+    // 1. Check if it's a cancel request
+    if (isCancelRequest(transcript) && !tempBookings[from]) {
+      // User will be handled by the cancel flow in index.js
+      // We'll treat this as a text message
+      return { type: "text", text: transcript };
+    }
+
+    // 2. Check if it's a doctor request
+    if (!tempBookings[from] && isDoctorRequest(transcript)) {
+      await sendDoctorInfo(from);
       return;
     }
 
-    if (isLocationRequest(transcript)) {
-      await sendLocationMessages(from, isEnglish(transcript) ? "en" : "ar");
-      return;
-    }
-
-    if (isOffersRequest(transcript)) {
-      await sendOffersImages(from, isEnglish(transcript) ? "en" : "ar");
-      return;
-    }
-
-    if (isDoctorsRequest(transcript)) {
-      await sendDoctorsImages(from, isEnglish(transcript) ? "en" : "ar");
-      return;
-    }
-
-    if (containsFriday(transcript)) {
-      await sendTextMessage(from, "📅 يوم الجمعة عطلة رسمية");
+    // 3. Check if it's a booking request
+    if (!tempBookings[from] && isBookingRequest(transcript)) {
+      console.log("📅 Starting booking from voice for:", from);
+      tempBookings[from] = {};
       await sendAppointmentOptions(from);
       return;
     }
 
-    if (isQuestion(transcript)) {
-      const answer = await askAI(transcript);
-      await sendTextMessage(from, answer);
-      return;
-    }
-
-    if (!tempBookings[from]) {
-      if (
-        transcript.includes("حجز") ||
-        transcript.toLowerCase().includes("book") ||
-        transcript.includes("موعد") ||
-        transcript.includes("appointment")
-      ) {
-        tempBookings[from] = {};
-        await sendAppointmentOptions(from);
-      } else {
-        await sendTextMessage(from, await askAI(transcript));
-      }
-      return;
-    }
-
-    if (!tempBookings[from].name) {
-      if (!(await validateNameWithAI(transcript))) {
+    // 4. If in booking flow - collect name
+    if (tempBookings[from] && !tempBookings[from].name) {
+      // Simple name validation - just check it's not a number or too short
+      if (transcript.length < 2 || /^\d+$/.test(transcript)) {
         await sendTextMessage(from, "⚠️ أدخل اسمًا صحيحًا");
         return;
       }
       tempBookings[from].name = transcript;
-      await sendTextMessage(from, "📱 أرسل رقم جوالك");
+      await sendTextMessage(from, "📱 أرسل رقم الجوال:");
       return;
     }
 
-    if (!tempBookings[from].phone) {
+    // 5. If in booking flow - collect phone
+    if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
-      if (!/^07\d{8}$/.test(normalized)) {
-        await sendTextMessage(from, "⚠️ رقم غير صحيح");
+
+      // Basic phone validation (adjust regex based on your country format)
+      if (normalized.length < 8) {
+        await sendTextMessage(from, "⚠️ رقم الجوال غير صحيح. حاول مجددًا:");
         return;
       }
+
       tempBookings[from].phone = normalized;
       await sendServiceList(from);
       return;
     }
 
-    if (!tempBookings[from].service) {
-      tempBookings[from].service = transcript;
-      const booking = tempBookings[from];
-      await saveBooking(booking);
-      await sendBookingConfirmation(from, booking);
-      delete tempBookings[from];
+    // 6. If it's a question, ask AI
+    if (!tempBookings[from] && isQuestion(transcript)) {
+      const answer = await askAI(transcript);
+      await sendTextMessage(from, answer);
+      return;
+    }
+
+    // 7. Default - send to AI
+    if (!tempBookings[from]) {
+      const reply = await askAI(transcript);
+      await sendTextMessage(from, reply);
+      return;
     }
   } catch (err) {
     console.error("❌ Audio processing error:", err);
