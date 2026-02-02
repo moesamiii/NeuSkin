@@ -9,7 +9,7 @@
  * This keeps content moderation logic separate and maintainable
  */
 
-const { sendTextMessage } = require("./helpers");
+import axios from "axios";
 
 // ---------------------------------------------
 // 🚫 Ban Words List (English + Arabic)
@@ -205,7 +205,7 @@ const BAN_WORDS = {
 // ---------------------------------------------
 // 🔧 Arabic Normalizer (fix WhatsApp invisible chars)
 // ---------------------------------------------
-function normalizeArabic(text = "") {
+export function normalizeArabic(text = "") {
   return text
     .replace(/\u200F/g, "")
     .replace(/\u200E/g, "")
@@ -217,7 +217,7 @@ function normalizeArabic(text = "") {
 // ---------------------------------------------
 // 🚫 Ban Words Detection
 // ---------------------------------------------
-function containsBanWords(text = "") {
+export function containsBanWords(text = "") {
   if (!text || typeof text !== "string") return false;
 
   const lower = text.toLowerCase();
@@ -240,22 +240,23 @@ function containsBanWords(text = "") {
 // ---------------------------------------------
 // 🚫 Send Ban Words Response
 // ---------------------------------------------
-async function sendBanWordsResponse(to) {
+export async function sendBanWordsResponse(to) {
+  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+  const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
   try {
-    await sendTextMessage(
-      to,
-      "Sorry for your frustration 🙏 Please avoid inappropriate words."
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        text: {
+          body: "Sorry for your frustration 🙏 Please avoid inappropriate words.",
+        },
+      },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
     );
   } catch (err) {
     console.error("❌ Ban words response error:", err.message);
   }
 }
-
-// --------------------------------------------
-// Exports
-// --------------------------------------------
-module.exports = {
-  containsBanWords,
-  sendBanWordsResponse,
-  normalizeArabic,
-};
