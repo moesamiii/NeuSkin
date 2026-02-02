@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>جدول الحجوزات - Clinic</title>
+
+    <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      @media (min-width: 1024px) {
+        .dashboard-grid {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+        }
+        .table-card {
+          width: 100% !important;
+          max-width: none !important;
+          margin: 0;
+        }
+      }
+
+      select.status-dropdown,
+      select#statusFilter {
+        padding: 6px 8px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background: #fff;
+        color: #222;
+        cursor: pointer;
+      }
+
+      body.dark select {
+        background: #333;
+        color: #f1f1f1;
+        border-color: #555;
+      }
+
+      .save-indicator {
+        font-size: 12px;
+        color: green;
+        display: none;
+        margin-right: 5px;
+      }
+
+      .sending-indicator {
+        color: #7c3aed;
+        font-size: 12px;
+        margin-right: 5px;
+        display: none;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .debug-info {
+        background: #f8f8f8;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 12px;
+        font-family: monospace;
+        margin-top: 15px;
+        display: none;
+        max-height: 250px;
+        overflow-y: auto;
+        color: #222;
+      }
+
+      /* Dark mode */
+      body.dark table,
+      body.dark th,
+      body.dark td {
+        color: #d1d5db;
+        border-color: #333;
+      }
+
+      body.dark .table-card {
+        background: #252535;
+        color: #d1d5db;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html" class="active"
+            ><i class="fa-solid fa-table"></i> جدول التواصل</a
+          >
+          <a href="contactlist.html"
+            ><i class="fa-solid fa-address-book"></i> قائمة التواصل</a
+          >
+          <a href="AIsettings.html"
+            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
+          >
+          <a href="offers.html"
+            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
+          >
+          <a href="clinic-settings.html"
+            ><i class="fa-solid fa-gear"></i> إعدادات العيادة</a
+          >
+          <a href="messageTiming.html">
+            <i class="fa-solid fa-gear"></i>
+            التوقيت بين الرسائل
+          </a>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>جدول الحجوزات</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="dashboard-grid">
+          <div class="table-card">
+            <h3>جدول الحجوزات</h3>
+
+            <!-- FILTER FIXED -->
+            <select id="statusFilter">
+              <option value="all">الكل</option>
+              <option value="new">جديد</option>
+              <option value="Contacted">تم التواصل</option>
+              <option value="Booking Complete">تم الحجز</option>
+              <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
+              <option value="Canceled">ملغى</option>
+            </select>
+
+            <table id="tbl">
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>الهاتف</th>
+                  <th>الخدمة</th>
+                  <th>الموعد</th>
+                  <th>الوقت</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer id="footerText">© 2025 Clinic</footer>
+      </main>
+    </div>
+
+    <script>
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+      // ✅ FIXED: Using supabaseClient instead of supabase to match dashboard.html
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+      );
+
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
+      let allData = [];
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        // Update page title
+        document.title = "جدول الحجوزات - " + clinicName;
+      }
+
+      // LOAD BOOKINGS (REAL STATUS)
+      async function load() {
+        const { data, error } = await supabaseClient
+          .from("bookings")
+          .select("*")
+          .order("time", { ascending: false });
+
+        if (error) {
+          console.error(error);
+          return;
+        }
+
+        allData = data;
+        applyFilter();
+      }
+
+      // UPDATE STATUS
+      async function updateStatus(id, newStatus, oldStatus) {
+        await supabaseClient
+          .from("bookings")
+          .update({ status: newStatus })
+          .eq("id", id);
+
+        await supabaseClient.from("booking_history").insert([
+          {
+            booking_id: id,
+            old_status: oldStatus,
+            new_status: newStatus,
+            changed_by: "Admin",
+          },
+        ]);
+      }
+
+      // RENDER TABLE
+      function renderTable(data) {
+        const tb = document.querySelector("#tbl tbody");
+        tb.innerHTML = "";
+
+        data.forEach((b, idx) => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td>${b.name || "-"}</td>
+            <td>${b.phone || "-"}</td>
+            <td>${b.service || "-"}</td>
+            <td>${b.appointment || "-"}</td>
+            <td>${b.time || "-"}</td>
+
+            <td>
+              <select class="status-dropdown" data-index="${idx}" data-id="${
+                b.id
+              }">
+                <option value="new" ${
+                  b.status === "new" ? "selected" : ""
+                }>جديد</option>
+                <option value="Contacted" ${
+                  b.status === "Contacted" ? "selected" : ""
+                }>تم التواصل</option>
+                <option value="Booking Complete" ${
+                  b.status === "Booking Complete" ? "selected" : ""
+                }>تم الحجز</option>
+                <option value="SentNoReply" ${
+                  b.status === "SentNoReply" ? "selected" : ""
+                }>تم الإرسال ولم يتم الرد</option>
+                <option value="Canceled" ${
+                  b.status === "Canceled" ? "selected" : ""
+                }>ملغى</option>
+              </select>
+            </td>
+          `;
+
+          tb.appendChild(row);
+        });
+
+        document.querySelectorAll(".status-dropdown").forEach((sel) => {
+          sel.addEventListener("change", async (e) => {
+            const index = e.target.dataset.index;
+            const id = e.target.dataset.id;
+
+            const newStatus = e.target.value;
+            const oldStatus = allData[index].status;
+
+            allData[index].status = newStatus;
+            await updateStatus(id, newStatus, oldStatus);
+
+            applyFilter();
+          });
+        });
+      }
+
+      // FILTER
+      function applyFilter() {
+        const val = document.getElementById("statusFilter").value;
+
+        if (val === "all") {
+          renderTable(allData);
+        } else {
+          const filtered = allData.filter((b) => b.status === val);
+          renderTable(filtered);
+        }
+      }
+
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", applyFilter);
+
+      // THEME
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+
+      // Apply saved theme on load
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
+      }
+
+      // SIDEBAR TOGGLE
+      document.getElementById("menuToggle").addEventListener("click", () => {
+        document.getElementById("sidebar").classList.toggle("active");
+      });
+
+      // ✅ Initial load - load settings first, then data
+      loadClinicSettings();
+      load();
+      setInterval(load, 15000);
+    </script>
+  </body>
+</html>

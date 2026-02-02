@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>إعدادات التوقيت بين الرسائل</title>
+
+    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+
+    <style>
+      .settings-container {
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .setting-card {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        transition: background 0.3s;
+        gap: 15px;
+      }
+
+      body.dark .setting-card {
+        background: #2a2a2a;
+        color: #fff;
+      }
+
+      .setting-info h4 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .setting-info p {
+        margin: 6px 0 0;
+        color: #777;
+        font-size: 14px;
+      }
+
+      select,
+      input[type="number"],
+      input[type="text"] {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+        cursor: pointer;
+        width: 170px;
+        max-width: 100%;
+      }
+
+      body.dark select,
+      body.dark input[type="number"],
+      body.dark input[type="text"] {
+        background: #3a3a3a;
+        color: #fff;
+        border-color: #555;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 26px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #a855f7;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 14px;
+        color: #aaa;
+      }
+
+      .hint {
+        font-size: 13px;
+        color: #888;
+        margin-top: 6px;
+      }
+
+      body.dark .hint {
+        color: #bbb;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen">
+      <div id="loginBox">
+        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
+        <input type="password" id="password" placeholder="كلمة المرور" />
+        <button onclick="login()">تسجيل الدخول</button>
+        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
+      </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="notifications.html" id="notificationLink">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول التواصل
+          </a>
+
+          <a href="contactlist.html">
+            <i class="fa-solid fa-address-book"></i>
+            قائمة التواصل
+          </a>
+
+          <a href="AIsettings.html">
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
+          </a>
+
+          <a href="offers.html">
+            <i class="fa-solid fa-gift"></i>
+            الحملات الاعلانية
+          </a>
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
+          </a>
+
+          <a href="messageTiming.html" class="active">
+            <i class="fa-solid fa-clock"></i>
+            التوقيت بين الرسائل
+          </a>
+        </nav>
+      </aside>
+
+      <!-- CONTENT -->
+      <main class="main-content" id="dashboardContent" style="display: none">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>التوقيت بين الرسائل</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="settings-container">
+          <!-- Toggle -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>تفعيل التأخير بين الرسائل</h4>
+              <p>يعطي فاصل زمني طبيعي بين كل رسالة ورسالة.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="msgDelayToggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Min delay -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>الحد الأدنى للتأخير (بالثواني)</h4>
+              <p>أقل وقت انتظار قبل إرسال الرسالة التالية.</p>
+              <div class="hint">مثال: 2 = ثانيتين</div>
+            </div>
+            <input
+              id="msgDelayMin"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="مثال: 2"
+            />
+          </div>
+
+          <!-- Max delay -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>الحد الأقصى للتأخير (بالثواني)</h4>
+              <p>أعلى وقت انتظار قبل إرسال الرسالة التالية.</p>
+              <div class="hint">مثال: 6 = 6 ثواني</div>
+            </div>
+            <input
+              id="msgDelayMax"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="مثال: 6"
+            />
+          </div>
+
+          <!-- Mode -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>نوع التأخير</h4>
+              <p>ثابت أو عشوائي ضمن المجال (الأدنى–الأقصى).</p>
+            </div>
+            <select id="msgDelayMode">
+              <option value="random">عشوائي (Human-like)</option>
+              <option value="fixed">ثابت (على الأدنى)</option>
+            </select>
+          </div>
+
+          <button
+            id="saveTimingSettings"
+            style="
+              background: linear-gradient(270deg, #7c3aed, #a855f7);
+              color: #fff;
+              border: none;
+              padding: 12px 28px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 16px;
+              align-self: center;
+              margin-top: 20px;
+            "
+          >
+            حفظ الإعدادات
+          </button>
+
+          <!-- TEST SEND CARD -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>إرسال رسالة اختبار</h4>
+              <p>اختبر الإرسال مع تطبيق التأخير الذكي قبل كل رسالة.</p>
+              <div class="hint">اكتب الرقم بصيغة دولية مثل: 9627XXXXXXXX</div>
+            </div>
+
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                min-width: 260px;
+              "
+            >
+              <input
+                id="testPhone"
+                type="text"
+                placeholder="رقم الهاتف (مثال: 962781234567)"
+              />
+              <input id="testMsg" type="text" placeholder="نص الرسالة" />
+              <input
+                id="testImageUrl"
+                type="text"
+                placeholder="رابط صورة (اختياري)"
+              />
+              <button
+                id="sendTestBtn"
+                style="
+                  background: #111827;
+                  color: #fff;
+                  border: none;
+                  padding: 10px 14px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 14px;
+                "
+              >
+                إرسال الآن (اختبار)
+              </button>
+            </div>
+          </div>
+
+          <!-- DEBUG BOX -->
+          <div
+            class="setting-card"
+            style="flex-direction: column; align-items: stretch"
+          >
+            <div class="setting-info" style="width: 100%">
+              <h4>سجل الإرسال</h4>
+              <p>هنا يظهر كل ما يحدث أثناء الإرسال.</p>
+            </div>
+            <div
+              id="debugContent"
+              style="
+                background: rgba(0, 0, 0, 0.04);
+                border-radius: 10px;
+                padding: 12px;
+                max-height: 220px;
+                overflow: auto;
+                font-size: 13px;
+                line-height: 1.6;
+              "
+            ></div>
+          </div>
+        </section>
+
+        <footer>© 2025 Smile Clinic</footer>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      // ===== LOGIN LOGIC =====
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+      );
+
+      async function login() {
+        const email = document.getElementById("email")?.value?.trim() || "";
+        const password =
+          document.getElementById("password")?.value?.trim() || "";
+
+        const { data } = await supabaseClient
+          .from("admin_auth")
+          .select("*")
+          .eq("email", email)
+          .eq("password", password)
+          .maybeSingle();
+
+        if (data) {
+          document.getElementById("loginScreen").style.display = "none";
+          document.getElementById("dashboardContent").style.display = "block";
+          localStorage.setItem("clinic_logged_in", "true");
+        } else {
+          document.getElementById("errorMsg").style.display = "block";
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("clinic_logged_in");
+        document.getElementById("loginScreen").style.display = "flex";
+        document.getElementById("dashboardContent").style.display = "none";
+      }
+
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+      }
+
+      // ===== THEME TOGGLE =====
+      const themeToggle = document.getElementById("themeToggle");
+      if (themeToggle) {
+        themeToggle.addEventListener("click", function () {
+          document.body.classList.toggle("dark");
+          const icon = themeToggle.querySelector("i");
+          if (document.body.classList.contains("dark")) {
+            icon.classList.replace("fa-moon", "fa-sun");
+            localStorage.setItem("clinic_theme", "dark");
+          } else {
+            icon.classList.replace("fa-sun", "fa-moon");
+            localStorage.setItem("clinic_theme", "light");
+          }
+        });
+
+        if (localStorage.getItem("clinic_theme") === "dark") {
+          document.body.classList.add("dark");
+          const icon = themeToggle.querySelector("i");
+          icon.classList.replace("fa-moon", "fa-sun");
+        }
+      }
+
+      // ===== MENU TOGGLE =====
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      if (menuToggle && sidebar) {
+        menuToggle.addEventListener("click", () =>
+          sidebar.classList.toggle("active"),
+        );
+
+        document.addEventListener("click", (e) => {
+          if (
+            window.innerWidth <= 768 &&
+            sidebar.classList.contains("active") &&
+            !sidebar.contains(e.target) &&
+            e.target !== menuToggle
+          ) {
+            sidebar.classList.remove("active");
+          }
+        });
+      }
+
+      // ===== TIMING SETTINGS =====
+      const msgDelayToggle = document.getElementById("msgDelayToggle");
+      const msgDelayMin = document.getElementById("msgDelayMin");
+      const msgDelayMax = document.getElementById("msgDelayMax");
+      const msgDelayMode = document.getElementById("msgDelayMode");
+      const saveBtn = document.getElementById("saveTimingSettings");
+
+      const DEFAULTS = {
+        msgDelayToggle: true,
+        msgDelayMin: 6,
+        msgDelayMax: 28,
+        msgDelayMode: "random",
+        typingEnabled: true,
+        charsPerSecondMin: 3.2,
+        charsPerSecondMax: 6.0,
+        typingMaxExtraSec: 40,
+        jitterSec: 2.5,
+        cooldownEnabled: true,
+        cooldownEvery: 12,
+        cooldownMinSec: 45,
+        cooldownMaxSec: 160,
+        sentCounterKey: "msgDelay_sentCounter",
+      };
+
+      function lsGet(key, fallback) {
+        const v = localStorage.getItem(key);
+        if (v === null || v === undefined || v === "") return fallback;
+        return v;
+      }
+      function lsGetBool(key, fallbackBool) {
+        const v = localStorage.getItem(key);
+        if (v === null) return fallbackBool;
+        return v === "true";
+      }
+      function lsGetNum(key, fallbackNum) {
+        const v = localStorage.getItem(key);
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallbackNum;
+      }
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      // Load UI defaults
+      if (msgDelayToggle)
+        msgDelayToggle.checked = lsGetBool(
+          "msgDelayToggle",
+          DEFAULTS.msgDelayToggle,
+        );
+      if (msgDelayMin)
+        msgDelayMin.value = String(
+          lsGetNum("msgDelayMin", DEFAULTS.msgDelayMin),
+        );
+      if (msgDelayMax)
+        msgDelayMax.value = String(
+          lsGetNum("msgDelayMax", DEFAULTS.msgDelayMax),
+        );
+      if (msgDelayMode)
+        msgDelayMode.value = lsGet("msgDelayMode", DEFAULTS.msgDelayMode);
+
+      // Save button
+      if (saveBtn) {
+        saveBtn.addEventListener("click", () => {
+          const enabled = msgDelayToggle ? msgDelayToggle.checked : true;
+          const minVal = Math.max(0, parseInt(msgDelayMin?.value || "0", 10));
+          const maxVal = Math.max(0, parseInt(msgDelayMax?.value || "0", 10));
+
+          const finalMin = Math.min(minVal, maxVal);
+          const finalMax = Math.max(minVal, maxVal);
+
+          if (msgDelayMin) msgDelayMin.value = String(finalMin);
+          if (msgDelayMax) msgDelayMax.value = String(finalMax);
+
+          localStorage.setItem("msgDelayToggle", String(enabled));
+          localStorage.setItem("msgDelayMin", String(finalMin));
+          localStorage.setItem("msgDelayMax", String(finalMax));
+          localStorage.setItem("msgDelayMode", msgDelayMode?.value || "random");
+
+          localStorage.setItem(
+            "msgDelay_typingEnabled",
+            String(DEFAULTS.typingEnabled),
+          );
+          localStorage.setItem(
+            "msgDelay_charsPerSecondMin",
+            String(DEFAULTS.charsPerSecondMin),
+          );
+          localStorage.setItem(
+            "msgDelay_charsPerSecondMax",
+            String(DEFAULTS.charsPerSecondMax),
+          );
+          localStorage.setItem(
+            "msgDelay_typingMaxExtraSec",
+            String(DEFAULTS.typingMaxExtraSec),
+          );
+          localStorage.setItem(
+            "msgDelay_jitterSec",
+            String(DEFAULTS.jitterSec),
+          );
+          localStorage.setItem(
+            "msgDelay_cooldownEnabled",
+            String(DEFAULTS.cooldownEnabled),
+          );
+          localStorage.setItem(
+            "msgDelay_cooldownEvery",
+            String(DEFAULTS.cooldownEvery),
+          );
+          localStorage.setItem(
+            "msgDelay_cooldownMinSec",
+            String(DEFAULTS.cooldownMinSec),
+          );
+          localStorage.setItem(
+            "msgDelay_cooldownMaxSec",
+            String(DEFAULTS.cooldownMaxSec),
+          );
+
+          alert("✅ تم حفظ إعدادات التوقيت بنجاح!");
+          if (enabled) {
+            const modeText =
+              (msgDelayMode?.value || "random") === "fixed" ? "ثابت" : "عشوائي";
+            alert(
+              `⏳ التأخير مفعّل: من ${finalMin} إلى ${finalMax} ثانية (${modeText}) + محاكاة كتابة + فواصل ذكية.`,
+            );
+          } else {
+            alert("⏹️ التأخير غير مفعّل حالياً.");
+          }
+        });
+      }
+
+      function getHumanDelayMs(messageText = "") {
+        const enabled = lsGetBool("msgDelayToggle", DEFAULTS.msgDelayToggle);
+        if (!enabled) return 0;
+
+        const mode = lsGet("msgDelayMode", DEFAULTS.msgDelayMode);
+
+        const baseMin = Math.max(
+          0,
+          lsGetNum("msgDelayMin", DEFAULTS.msgDelayMin),
+        );
+        const baseMax = Math.max(
+          0,
+          lsGetNum("msgDelayMax", DEFAULTS.msgDelayMax),
+        );
+        const min = Math.min(baseMin, baseMax);
+        const max = Math.max(baseMin, baseMax);
+
+        let baseSec = mode === "fixed" ? min : rand(min, max);
+
+        const typingEnabled = lsGetBool(
+          "msgDelay_typingEnabled",
+          DEFAULTS.typingEnabled,
+        );
+        if (typingEnabled && messageText) {
+          const cpsMin = lsGetNum(
+            "msgDelay_charsPerSecondMin",
+            DEFAULTS.charsPerSecondMin,
+          );
+          const cpsMax = lsGetNum(
+            "msgDelay_charsPerSecondMax",
+            DEFAULTS.charsPerSecondMax,
+          );
+          const cps = rand(Math.min(cpsMin, cpsMax), Math.max(cpsMin, cpsMax));
+
+          const chars = String(messageText).length;
+          let typingExtra = chars / Math.max(1, cps);
+
+          const cap = lsGetNum(
+            "msgDelay_typingMaxExtraSec",
+            DEFAULTS.typingMaxExtraSec,
+          );
+          typingExtra = Math.min(typingExtra, cap);
+
+          baseSec += typingExtra * 0.45;
+        }
+
+        const jitterSec = Math.max(
+          0,
+          lsGetNum("msgDelay_jitterSec", DEFAULTS.jitterSec),
+        );
+        baseSec += rand(0, jitterSec);
+
+        const cooldownEnabled = lsGetBool(
+          "msgDelay_cooldownEnabled",
+          DEFAULTS.cooldownEnabled,
+        );
+        if (cooldownEnabled) {
+          const every = Math.max(
+            1,
+            parseInt(
+              lsGet("msgDelay_cooldownEvery", DEFAULTS.cooldownEvery),
+              10,
+            ),
+          );
+          const key = DEFAULTS.sentCounterKey;
+
+          const count =
+            (parseInt(localStorage.getItem(key) || "0", 10) || 0) + 1;
+          localStorage.setItem(key, String(count));
+
+          if (count % every === 0) {
+            const cMin = Math.max(
+              0,
+              lsGetNum("msgDelay_cooldownMinSec", DEFAULTS.cooldownMinSec),
+            );
+            const cMax = Math.max(
+              0,
+              lsGetNum("msgDelay_cooldownMaxSec", DEFAULTS.cooldownMaxSec),
+            );
+            baseSec += rand(Math.min(cMin, cMax), Math.max(cMin, cMax));
+          }
+        }
+
+        return Math.max(0, Math.round(baseSec * 1000));
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      async function applyHumanDelay(messageText = "") {
+        const d = getHumanDelayMs(messageText);
+        if (d > 0) await sleep(d);
+      }
+
+      // ===== DEBUG LOG =====
+      function addDebugLog(message, type = "info") {
+        const debug = document.getElementById("debugContent");
+        const time = new Date().toLocaleTimeString("ar-EG");
+        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+
+        console.log(`[${time}] ${message}`);
+
+        if (!debug) return;
+        debug.innerHTML += `<div>[${time}] ${icon} ${message}</div>`;
+        debug.scrollTop = debug.scrollHeight;
+      }
+
+      // ===== SEND WHATSAPP MESSAGE (FIXED) =====
+      async function sendWhatsAppMessage(phone, messageText, imageUrl) {
+        try {
+          addDebugLog(
+            `⏳ تطبيق التأخير الذكي قبل إرسال الرسالة إلى ${phone}...`,
+          );
+          await applyHumanDelay(messageText);
+
+          const PHONE_NUMBER_ID = "112887458534900";
+          const TOKEN =
+            "EAAM2ahtGe0cBQqRkJWh4WfMgZClNtPopZC7lkrZALbLQyfMuQvbWTRl97IkSdegYq6bOyCwrqcCcxMkbXWmJaxBR4lJIlwSz23ge14QR5cCZC1B3CnqTRGiSrilOV7DJZCZBZCC7hz8TUj5oiQC6nO8mHZBfcoEsxnKAiZAqNdMZBYi7ZAH7Yk9s4yLqOnu3HftH4kXk1gZBqDXa4wimO1oiCJ5FibWFZAM8gmgZAAjh1BLjGqiZCipSCG3v0PovfjNjVQ8RRZBCFFxX2cykbVZCQYHCBXPmKJhAvGhz4ucJVpLFl7wZDZD";
+
+          const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+
+          const payload = {
+            messaging_product: "whatsapp",
+            to: phone,
+            type: "text",
+            text: { body: messageText },
+          };
+
+          addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
+
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.messages) {
+            addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
+            return true;
+          } else {
+            addDebugLog(`⚠️ فشل الإرسال: ${JSON.stringify(data)}`, "error");
+            return false;
+          }
+        } catch (err) {
+          addDebugLog(`❌ خطأ أثناء الإرسال: ${err.message}`, "error");
+          return false;
+        }
+      }
+
+      // ===== SEND TEST BUTTON =====
+      const sendTestBtn = document.getElementById("sendTestBtn");
+      if (sendTestBtn) {
+        sendTestBtn.addEventListener("click", async () => {
+          const btn = sendTestBtn;
+          const phone = (
+            document.getElementById("testPhone")?.value || ""
+          ).trim();
+          const msg = (document.getElementById("testMsg")?.value || "").trim();
+          const imageUrl = (
+            document.getElementById("testImageUrl")?.value || ""
+          ).trim();
+
+          if (!phone || !msg) {
+            alert("⚠️ يرجى إدخال رقم الهاتف ونص الرسالة");
+            return;
+          }
+
+          btn.disabled = true;
+          const original = btn.textContent;
+          btn.textContent = "جاري الإرسال...";
+
+          const ok = await sendWhatsAppMessage(phone, msg, imageUrl);
+
+          btn.disabled = false;
+          btn.textContent = original;
+
+          if (ok) alert("✅ تم إرسال رسالة الاختبار بنجاح");
+          else alert("❌ فشل إرسال رسالة الاختبار");
+        });
+      }
+
+      // Expose functions
+      window.sendWhatsAppMessage = sendWhatsAppMessage;
+      window.getHumanDelayMs = getHumanDelayMs;
+      window.applyHumanDelay = applyHumanDelay;
+      window.logout = logout;
+      window.login = login;
+    </script>
+    <script>
+      // Auto-fill test number
+      document.addEventListener("DOMContentLoaded", () => {
+        const phoneInput = document.getElementById("testPhone");
+        if (phoneInput) {
+          phoneInput.value = "962785050875";
+        }
+      });
+    </script>
+  </body>
+</html>

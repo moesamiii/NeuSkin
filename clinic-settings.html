@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>إعدادات العيادة</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Cairo", sans-serif;
+        background: linear-gradient(135deg, #345d9d 0%, #2a4a7c 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+
+      .settings-container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .settings-header {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        padding: 40px 35px;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        text-align: center;
+        position: relative;
+        border-bottom: 3px solid #345d9d;
+      }
+
+      .back-btn {
+        position: absolute;
+        top: 25px;
+        right: 25px;
+        background: white;
+        color: #345d9d;
+        border: 2px solid #345d9d;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: "Cairo", sans-serif;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(52, 93, 157, 0.15);
+      }
+
+      .back-btn:hover {
+        background: linear-gradient(135deg, #345d9d 0%, #2a4a7c 100%);
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(52, 93, 157, 0.35);
+      }
+
+      .back-btn i {
+        font-size: 16px;
+        transition: transform 0.3s ease;
+      }
+
+      .back-btn:hover i {
+        transform: translateX(5px);
+      }
+
+      .settings-header .header-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #345d9d 0%, #2a4a7c 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        box-shadow: 0 8px 24px rgba(52, 93, 157, 0.3);
+        transform: rotate(-5deg);
+        transition: all 0.3s ease;
+      }
+
+      .settings-header .header-icon:hover {
+        transform: rotate(0deg) scale(1.05);
+      }
+
+      .settings-header .header-icon i {
+        font-size: 40px;
+        color: white;
+      }
+
+      .settings-header h2 {
+        font-size: 32px;
+        color: #2d3748;
+        margin-bottom: 12px;
+        font-weight: 700;
+      }
+
+      .settings-header p {
+        color: #718096;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .settings-card {
+        background: white;
+        padding: 45px;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
+      }
+
+      .form-section {
+        margin-bottom: 40px;
+        padding-bottom: 35px;
+        border-bottom: 2px solid #e8ecf7;
+      }
+
+      .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        font-size: 20px;
+        color: #345d9d;
+        margin-bottom: 25px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #f0f4ff;
+      }
+
+      .section-title i {
+        font-size: 24px;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf7 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .form-group {
+        margin-bottom: 24px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 700;
+        color: #2d3748;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .form-group label::before {
+        content: "•";
+        color: #345d9d;
+        font-size: 20px;
+      }
+
+      .form-group input,
+      .form-group textarea {
+        width: 100%;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        font-size: 15px;
+        font-family: "Cairo", sans-serif;
+        transition: all 0.3s ease;
+        background: #f8fafc;
+        font-weight: 500;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: #345d9d;
+        background: white;
+        box-shadow: 0 0 0 5px rgba(52, 93, 157, 0.08);
+        transform: translateY(-2px);
+      }
+
+      .form-group textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+      }
+
+      .save-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20893a 100%);
+        color: white;
+        border: none;
+        padding: 18px 50px;
+        cursor: pointer;
+        border-radius: 60px;
+        font-size: 18px;
+        font-weight: 700;
+        font-family: "Cairo", sans-serif;
+        width: 100%;
+        box-shadow: 0 8px 28px rgba(40, 167, 69, 0.4);
+        transition: all 0.3s ease;
+        margin-top: 25px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .save-btn::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition:
+          width 0.6s,
+          height 0.6s;
+      }
+
+      .save-btn:hover::before {
+        width: 400px;
+        height: 400px;
+      }
+
+      .save-btn:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 36px rgba(40, 167, 69, 0.5);
+      }
+
+      .save-btn:active {
+        transform: translateY(-1px);
+      }
+
+      .save-btn i {
+        margin-left: 10px;
+        font-size: 20px;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 20px 15px;
+        }
+
+        .settings-header {
+          padding: 30px 20px;
+          padding-top: 80px;
+        }
+
+        .back-btn {
+          top: 20px;
+          right: 20px;
+          padding: 10px 18px;
+          font-size: 13px;
+        }
+
+        .back-btn span {
+          display: none;
+        }
+
+        .back-btn i {
+          margin: 0;
+        }
+
+        .settings-header .header-icon {
+          width: 70px;
+          height: 70px;
+        }
+
+        .settings-header .header-icon i {
+          font-size: 35px;
+        }
+
+        .settings-header h2 {
+          font-size: 26px;
+        }
+
+        .settings-header p {
+          font-size: 14px;
+        }
+
+        .settings-card {
+          padding: 30px 20px;
+        }
+
+        .form-row {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+
+        .section-title {
+          font-size: 18px;
+        }
+
+        .section-title i {
+          font-size: 20px;
+          width: 36px;
+          height: 36px;
+        }
+
+        .save-btn {
+          padding: 16px 40px;
+          font-size: 16px;
+        }
+      }
+
+      /* Loading Animation */
+      .save-btn.loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.8;
+      }
+
+      .save-btn.loading::after {
+        content: "";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        top: 50%;
+        right: 30px;
+        margin-top: -10px;
+        border: 3px solid white;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 0.6s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Smooth page entrance */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .settings-container {
+        animation: fadeInUp 0.6s ease;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="settings-container">
+      <div class="settings-header">
+        <a href="dashboard.html" class="back-btn">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>العودة إلى لوحة القيادة</span>
+        </a>
+        <div class="header-icon">
+          <i class="fa-solid fa-hospital"></i>
+        </div>
+        <h2>إعدادات العيادة</h2>
+        <p>قم بتحديث معلومات عيادتك وإعدادات النظام</p>
+      </div>
+
+      <div class="settings-card">
+        <!-- Basic Info Section -->
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fa-solid fa-building"></i>
+            <span>المعلومات الأساسية</span>
+          </div>
+
+          <div class="form-group">
+            <label>اسم العيادة</label>
+            <input id="clinic_name" placeholder="أدخل اسم العيادة" />
+          </div>
+        </div>
+
+        <!-- Working Hours Section -->
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fa-solid fa-clock"></i>
+            <span>أوقات العمل</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>أوقات العمل (عربي)</label>
+              <input
+                id="working_hours_ar"
+                placeholder="من 9 صباحاً إلى 9 مساءً"
+              />
+            </div>
+            <div class="form-group">
+              <label>Working Hours (EN)</label>
+              <input id="working_hours_en" placeholder="9 AM - 9 PM" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>أوقات الحجز المتاحة (افصل بفاصلة)</label>
+            <input id="booking_times" placeholder="3 PM, 6 PM, 9 PM" />
+          </div>
+        </div>
+
+        <!-- Pricing Section -->
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fa-solid fa-money-bill"></i>
+            <span>الأسعار</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>السعر (عربي)</label>
+              <input id="price_ar" placeholder="200 ريال" />
+            </div>
+            <div class="form-group">
+              <label>Price (EN)</label>
+              <input id="price_en" placeholder="200 SAR" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Section -->
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fa-solid fa-location-dot"></i>
+            <span>الموقع</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>الموقع (عربي)</label>
+              <input
+                id="location_ar"
+                placeholder="الرياض، المملكة العربية السعودية"
+              />
+            </div>
+            <div class="form-group">
+              <label>Location (EN)</label>
+              <input id="location_en" placeholder="Riyadh, Saudi Arabia" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Offers Section -->
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fa-solid fa-tag"></i>
+            <span>العروض</span>
+          </div>
+
+          <div class="form-group">
+            <label>نص العرض (عربي)</label>
+            <textarea
+              id="offers_ar"
+              placeholder="خصم 20% على جميع الخدمات..."
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Offer Text (EN)</label>
+            <textarea
+              id="offers_en"
+              placeholder="20% discount on all services..."
+            ></textarea>
+          </div>
+        </div>
+
+        <button class="save-btn" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk"></i>
+          حفظ الإعدادات
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // ✅ Supabase Client (اسم آمن بدون تعارض)
+      const supabaseClient = window.supabase.createClient(
+        "https://ylsbmxedhycjqaorjkvm.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E",
+      );
+
+      // ✅ Load settings on page load
+      async function loadSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          alert("❌ فشل تحميل الإعدادات");
+          console.error(error);
+          return;
+        }
+
+        clinic_name.value = data.clinic_name || "";
+        working_hours_ar.value = data.working_hours_ar || "";
+        working_hours_en.value = data.working_hours_en || "";
+        price_ar.value = data.price_ar || "";
+        price_en.value = data.price_en || "";
+        location_ar.value = data.location_ar || "";
+        location_en.value = data.location_en || "";
+        booking_times.value = (data.booking_times || []).join(", ");
+        offers_ar.value = data.offers_ar || "";
+        offers_en.value = data.offers_en || "";
+      }
+
+      // ✅ Save settings
+      async function saveSettings() {
+        const btn = document.querySelector(".save-btn");
+        btn.classList.add("loading");
+
+        const payload = {
+          clinic_name: clinic_name.value,
+          working_hours_ar: working_hours_ar.value,
+          working_hours_en: working_hours_en.value,
+          price_ar: price_ar.value,
+          price_en: price_en.value,
+          location_ar: location_ar.value,
+          location_en: location_en.value,
+          booking_times: booking_times.value
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+          offers_ar: offers_ar.value,
+          offers_en: offers_en.value,
+        };
+
+        const { error } = await supabaseClient
+          .from("clinic_settings")
+          .update(payload)
+          .eq("clinic_id", "default");
+
+        btn.classList.remove("loading");
+
+        if (error) {
+          alert("❌ خطأ أثناء الحفظ");
+          console.error(error);
+        } else {
+          alert("✅ تم حفظ الإعدادات بنجاح");
+        }
+      }
+
+      // 🔹 Load on startup
+      loadSettings();
+    </script>
+  </body>
+</html>

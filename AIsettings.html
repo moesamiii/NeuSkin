@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>إعدادات الذكاء الاصطناعي</title>
+
+    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+
+    <style>
+      .settings-container {
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .setting-card {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        transition: background 0.3s;
+        gap: 15px;
+      }
+
+      body.dark .setting-card {
+        background: #2a2a2a;
+        color: #fff;
+      }
+
+      .setting-info h4 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .setting-info p {
+        margin: 6px 0 0;
+        color: #777;
+        font-size: 14px;
+      }
+
+      select {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      body.dark select {
+        background: #3a3a3a;
+        color: #fff;
+        border-color: #555;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 26px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #a855f7;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 14px;
+        color: #aaa;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen">
+      <div id="loginBox">
+        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
+        <input type="password" id="password" placeholder="كلمة المرور" />
+        <button onclick="login()">تسجيل الدخول</button>
+        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
+      </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="notifications.html" id="notificationLink">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول التواصل
+          </a>
+
+          <!-- ✅ NEW MENU ITEM ADDED HERE -->
+          <a href="contactlist.html">
+            <i class="fa-solid fa-address-book"></i>
+            قائمة التواصل
+          </a>
+          <!-- ✅ END NEW ITEM -->
+
+          <a href="AIsettings.html" class="active">
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
+          </a>
+
+          <a href="offers.html">
+            <i class="fa-solid fa-gift"></i>
+            الحملات الاعلانية
+          </a>
+
+          <a href="clinic-settings.html">
+            <i class="fa-solid fa-gear"></i>
+            إعدادات العيادة
+          </a>
+          <a href="messageTiming.html">
+            <i class="fa-solid fa-gear"></i>
+            التوقيت بين الرسائل
+          </a>
+        </nav>
+      </aside>
+
+      <!-- CONTENT -->
+      <main class="main-content" id="dashboardContent" style="display: none">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>إعدادات الذكاء الاصطناعي</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="settings-container">
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>كم مرة تذكير</h4>
+              <p>حدد عدد مرات التذكير في اليوم.</p>
+            </div>
+            <select id="reminderCount">
+              <option value="1">مرة واحدة</option>
+              <option value="2">مرتين</option>
+              <option value="3">ثلاث مرات</option>
+            </select>
+          </div>
+
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>الوقت بين كل تذكير و تذكير</h4>
+              <p>اختر الفاصل الزمني بين التذكيرات.</p>
+            </div>
+            <select id="reminderInterval">
+              <option value="2">كل دقيقتين</option>
+              <option value="5">كل 5 دقائق</option>
+              <option value="15">كل 15 دقيقة</option>
+              <option value="30">كل 30 دقيقة</option>
+              <option value="60">كل ساعة</option>
+            </select>
+          </div>
+
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>تشغيل التذكيرات</h4>
+              <p>تفعيل أو إيقاف إرسال التذكيرات.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="reminderToggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <button
+            id="saveSettings"
+            style="
+              background: linear-gradient(270deg, #7c3aed, #a855f7);
+              color: #fff;
+              border: none;
+              padding: 12px 28px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 16px;
+              align-self: center;
+              margin-top: 20px;
+            "
+          >
+            حفظ الإعدادات
+          </button>
+        </section>
+
+        <footer id="footerText">© 2025 Clinic</footer>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      // ===== LOGIN LOGIC =====
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+      // ✅ FIXED: Using supabaseClient instead of supabase to match dashboard.html
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+      );
+
+      // ✅ Global variable to store clinic settings
+      let clinicSettings = null;
+
+      // ✅ Load clinic settings from database
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (error) {
+          console.error("Error loading clinic settings:", error);
+          return;
+        }
+
+        clinicSettings = data;
+        applyClinicSettings();
+      }
+
+      // ✅ Apply clinic settings to the UI
+      function applyClinicSettings() {
+        if (!clinicSettings) return;
+
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        // Update sidebar logo
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        // Update footer
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        // Update page title
+        document.title = "إعدادات الذكاء الاصطناعي - " + clinicName;
+      }
+
+      async function login() {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        const { data } = await supabaseClient
+          .from("admin_auth")
+          .select("*")
+          .eq("email", email)
+          .eq("password", password)
+          .maybeSingle();
+
+        if (data) {
+          document.getElementById("loginScreen").style.display = "none";
+          document.getElementById("dashboardContent").style.display = "block";
+          localStorage.setItem("clinic_logged_in", "true");
+          loadClinicSettings(); // ✅ Load settings after login
+        } else {
+          document.getElementById("errorMsg").style.display = "block";
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("clinic_logged_in");
+        document.getElementById("loginScreen").style.display = "flex";
+        document.getElementById("dashboardContent").style.display = "none";
+      }
+
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+        loadClinicSettings(); // ✅ Load settings on startup
+      }
+
+      // ===== THEME TOGGLE =====
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", function () {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
+      }
+
+      // ===== MENU TOGGLE =====
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active"),
+      );
+
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) &&
+          e.target !== menuToggle
+        ) {
+          sidebar.classList.remove("active");
+        }
+      });
+
+      // ===== SETTINGS STORAGE + WHATSAPP REMINDERS =====
+      const reminderCount = document.getElementById("reminderCount");
+      const reminderInterval = document.getElementById("reminderInterval");
+      const reminderToggle = document.getElementById("reminderToggle");
+
+      reminderCount.value = localStorage.getItem("reminderCount") || "1";
+      reminderInterval.value = localStorage.getItem("reminderInterval") || "15";
+      reminderToggle.checked =
+        localStorage.getItem("reminderToggle") === "true";
+
+      document
+        .getElementById("saveSettings")
+        .addEventListener("click", async () => {
+          localStorage.setItem("reminderCount", reminderCount.value);
+          localStorage.setItem("reminderInterval", reminderInterval.value);
+          localStorage.setItem("reminderToggle", reminderToggle.checked);
+          alert("✅ تم حفظ الإعدادات بنجاح!");
+
+          if (reminderToggle.checked) {
+            const count = parseInt(reminderCount.value);
+            const interval = parseInt(reminderInterval.value);
+
+            // ✅ Use dynamic clinic name in reminders
+            const clinicNameForReminder =
+              clinicSettings?.clinic_name || "Smile Clinic";
+
+            alert(`⏳ سيتم إرسال ${count} تذكير كل ${interval} دقيقة.`);
+
+            for (let i = 0; i < count; i++) {
+              setTimeout(
+                async () => {
+                  try {
+                    const payload = {
+                      name: clinicNameForReminder,
+                      phone: "962785050875",
+                      service: "تذكير تلقائي",
+                      appointment: `بعد ${interval * i} دقيقة`,
+                    };
+
+                    const res = await fetch(
+                      "https://whatsapp-cloud-webhook-woad.vercel.app/sendWhatsApp",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                      },
+                    );
+
+                    const data = await res.json();
+                    console.log(`📬 تذكير رقم ${i + 1}:`, data);
+
+                    if (data.success) {
+                      console.log(`✅ تم إرسال التذكير رقم ${i + 1}`);
+                    } else {
+                      console.error(`⚠️ فشل التذكير رقم ${i + 1}`);
+                    }
+                  } catch (err) {
+                    console.error("❌ WhatsApp Send Error:", err);
+                  }
+                },
+                i * interval * 60 * 1000,
+              );
+            }
+          }
+        });
+    </script>
+  </body>
+</html>
