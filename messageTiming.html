@@ -152,7 +152,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
-          <span>CONAN DASHBOARD</span>
+          <span id="sidebarClinicName">CLINIC DASHBOARD</span>
         </div>
         <nav class="menu">
           <a href="dashboard.html">
@@ -362,13 +362,15 @@
           </div>
         </section>
 
-        <footer>© 2025 Smile Clinic</footer>
+        <footer id="footerText">© 2025 Clinic</footer>
       </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ===== LOGIN LOGIC =====
+      // ✅ Backend API URL - connect to index.js
+      const BACKEND_URL = window.location.origin;
+
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -377,6 +379,39 @@
         SUPABASE_URL,
         SUPABASE_KEY,
       );
+
+      let clinicSettings = { clinic_name: "عيادة ابتسامة" };
+
+      async function loadClinicSettings() {
+        const { data, error } = await supabaseClient
+          .from("clinic_settings")
+          .select("*")
+          .eq("clinic_id", "default")
+          .single();
+
+        if (!error && data) {
+          clinicSettings = data;
+          applyClinicSettings();
+        }
+      }
+
+      function applyClinicSettings() {
+        const clinicName = clinicSettings.clinic_name || "CLINIC DASHBOARD";
+
+        const sidebarClinicName = document.getElementById("sidebarClinicName");
+        if (sidebarClinicName) {
+          sidebarClinicName.textContent =
+            clinicName.toUpperCase() + " DASHBOARD";
+        }
+
+        const footerText = document.getElementById("footerText");
+        if (footerText) {
+          const currentYear = new Date().getFullYear();
+          footerText.textContent = `© ${currentYear} ${clinicName}`;
+        }
+
+        document.title = "التوقيت بين الرسائل - " + clinicName;
+      }
 
       async function login() {
         const email = document.getElementById("email")?.value?.trim() || "";
@@ -394,6 +429,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          loadClinicSettings();
         } else {
           document.getElementById("errorMsg").style.display = "block";
         }
@@ -408,9 +444,9 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
+        loadClinicSettings();
       }
 
-      // ===== THEME TOGGLE =====
       const themeToggle = document.getElementById("themeToggle");
       if (themeToggle) {
         themeToggle.addEventListener("click", function () {
@@ -432,7 +468,6 @@
         }
       }
 
-      // ===== MENU TOGGLE =====
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       if (menuToggle && sidebar) {
@@ -452,7 +487,6 @@
         });
       }
 
-      // ===== TIMING SETTINGS =====
       const msgDelayToggle = document.getElementById("msgDelayToggle");
       const msgDelayMin = document.getElementById("msgDelayMin");
       const msgDelayMax = document.getElementById("msgDelayMax");
@@ -495,7 +529,6 @@
         return Math.random() * (max - min) + min;
       }
 
-      // Load UI defaults
       if (msgDelayToggle)
         msgDelayToggle.checked = lsGetBool(
           "msgDelayToggle",
@@ -512,7 +545,6 @@
       if (msgDelayMode)
         msgDelayMode.value = lsGet("msgDelayMode", DEFAULTS.msgDelayMode);
 
-      // Save button
       if (saveBtn) {
         saveBtn.addEventListener("click", () => {
           const enabled = msgDelayToggle ? msgDelayToggle.checked : true;
@@ -675,7 +707,6 @@
         if (d > 0) await sleep(d);
       }
 
-      // ===== DEBUG LOG =====
       function addDebugLog(message, type = "info") {
         const debug = document.getElementById("debugContent");
         const time = new Date().toLocaleTimeString("ar-EG");
@@ -688,7 +719,7 @@
         debug.scrollTop = debug.scrollHeight;
       }
 
-      // ===== SEND WHATSAPP MESSAGE (FIXED) =====
+      // ✅ Send via index.js /send-campaign endpoint
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           addDebugLog(
@@ -696,33 +727,27 @@
           );
           await applyHumanDelay(messageText);
 
-          const PHONE_NUMBER_ID = "112887458534900";
-          const TOKEN =
-            "EAAM2ahtGe0cBQqRkJWh4WfMgZClNtPopZC7lkrZALbLQyfMuQvbWTRl97IkSdegYq6bOyCwrqcCcxMkbXWmJaxBR4lJIlwSz23ge14QR5cCZC1B3CnqTRGiSrilOV7DJZCZBZCC7hz8TUj5oiQC6nO8mHZBfcoEsxnKAiZAqNdMZBYi7ZAH7Yk9s4yLqOnu3HftH4kXk1gZBqDXa4wimO1oiCJ5FibWFZAM8gmgZAAjh1BLjGqiZCipSCG3v0PovfjNjVQ8RRZBCFFxX2cykbVZCQYHCBXPmKJhAvGhz4ucJVpLFl7wZDZD";
-
-          const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+          const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
 
           const payload = {
-            messaging_product: "whatsapp",
-            to: phone,
-            type: "text",
-            text: { body: messageText },
+            name: clinicNameForMessage,
+            phone: phone,
+            service: "رسالة اختبار",
+            appointment: messageText,
+            image: imageUrl || undefined,
           };
 
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
 
-          const res = await fetch(url, {
+          const res = await fetch(`${BACKEND_URL}/send-campaign`, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${TOKEN}`,
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
 
           const data = await res.json();
 
-          if (res.ok && data.messages) {
+          if (data.success) {
             addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
             return true;
           } else {
@@ -735,7 +760,6 @@
         }
       }
 
-      // ===== SEND TEST BUTTON =====
       const sendTestBtn = document.getElementById("sendTestBtn");
       if (sendTestBtn) {
         sendTestBtn.addEventListener("click", async () => {
@@ -767,7 +791,6 @@
         });
       }
 
-      // Expose functions
       window.sendWhatsAppMessage = sendWhatsAppMessage;
       window.getHumanDelayMs = getHumanDelayMs;
       window.applyHumanDelay = applyHumanDelay;
@@ -775,7 +798,6 @@
       window.login = login;
     </script>
     <script>
-      // Auto-fill test number
       document.addEventListener("DOMContentLoaded", () => {
         const phoneInput = document.getElementById("testPhone");
         if (phoneInput) {
