@@ -33,16 +33,12 @@ loadClinicSettings();
 // ==============================
 // 📸 DOCTOR DATA
 // ==============================
-const DOCTOR_IMAGES = [
-  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
-  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
-  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
-];
+const DOCTOR_IMAGES = [];
 
 const DOCTOR_INFO = [
-  { name: "د. أحمد الخطيب", specialization: "تقويم الأسنان" },
-  { name: "د. سارة محمود", specialization: "تجميل الأسنان" },
-  { name: "د. خالد العمري", specialization: "طب الأسنان العام" },
+  { name: "د. طارق عورتاني", specialization: "" },
+  { name: "د. ميساء صافي ", specialization: "" },
+  { name: " د . تانيا بيربن ", specialization: "" },
 ];
 
 // ==============================
