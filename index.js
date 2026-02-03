@@ -1,6 +1,7 @@
 import express from "express";
 import axios from "axios";
-import Groq from "groq-sdk";
+// ✅ IMPORT THE AI HELPER - THIS WAS MISSING!
+import { askAI, validateNameWithAI } from "./aiHelper.js";
 import { handleAudioMessage } from "./webhookProcessor.js";
 
 const app = express();
@@ -255,42 +256,10 @@ async function cancelBooking(id) {
 }
 
 // ==============================
-// 🤖 GROQ AI
+// ❌ REMOVED - NOW USING aiHelper.js
+// The askAI function is now imported from aiHelper.js
+// which has much better prompts and clinic information
 // ==============================
-const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-function detectLanguage(text) {
-  return /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
-}
-
-async function askAI(userMessage) {
-  try {
-    const lang = detectLanguage(userMessage);
-
-    // ✅ Get dynamic clinic name or use default
-    const clinicName = clinicSettings?.clinic_name || "عيادة ابتسامة";
-
-    const systemPrompt =
-      lang === "ar"
-        ? `أنت موظف خدمة عملاء في ${clinicName}. لا تبدأ الحجز إلا إذا طلب المستخدم ذلك صراحة.`
-        : `You are a clinic assistant at ${clinicName}. Do not start booking unless user asks explicitly.`;
-
-    const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.7,
-      max_completion_tokens: 300,
-    });
-
-    return completion.choices[0]?.message?.content || "";
-  } catch (err) {
-    console.error("❌ AI error:", err.message);
-    return "⚠️ حدث خطأ.";
-  }
-}
 
 // ==============================
 // 📞 WHATSAPP
@@ -481,7 +450,7 @@ app.post("/webhook", async (req, res) => {
         await handleAudioMessage(
           message,
           from,
-          askAI,
+          askAI, // ✅ NOW USING THE IMPORTED askAI FROM aiHelper.js
           sendTextMessage,
           sendAppointmentOptions,
           sendServiceList,
@@ -548,7 +517,8 @@ app.post("/webhook", async (req, res) => {
         delete tempBookings[from];
         delete cancelSessions[from];
 
-        const lang = detectLanguage(text);
+        // ✅ Use detectLanguage from aiHelper
+        const lang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
         const clinicName =
           clinicSettings?.clinic_name ||
           (lang === "ar" ? "عيادة ابتسامة" : "Ibtisama Clinic");
@@ -634,6 +604,15 @@ app.post("/webhook", async (req, res) => {
 
       // ✅ PRIORITY 5: In booking flow - collect name
       if (tempBookings[from] && !tempBookings[from].name) {
+        // ✅ VALIDATE NAME USING AI
+        const isValidName = await validateNameWithAI(text);
+
+        if (!isValidName) {
+          await sendTextMessage(from, "⚠️ الرجاء إدخال اسم صحيح:");
+          markMessageProcessed(from, messageId);
+          return res.sendStatus(200);
+        }
+
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 أرسل رقم الجوال:");
         markMessageProcessed(from, messageId);
@@ -649,8 +628,9 @@ app.post("/webhook", async (req, res) => {
       }
 
       // ✅ PRIORITY 7: General question - send to AI
+      // ✅ NOW USING THE COMPREHENSIVE askAI FROM aiHelper.js
       if (!tempBookings[from]) {
-        const reply = await askAI(text);
+        const reply = await askAI(text); // ✅ This now has all the clinic info!
         await sendTextMessage(from, reply);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);

@@ -1,40 +1,30 @@
-const Groq = require("groq-sdk");
-const { createClient } = require("@supabase/supabase-js");
+// aiHelper.js
+
+import Groq from "groq-sdk";
 
 const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// ✅ Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+// ✅ Global variable to store clinic settings (will be set by index.js)
+let clinicSettings = {
+  clinic_name: "عيادة ابتسامة",
+  location_ar: "عمّان – عبدون، خلف بنك الإسكان، الطابق الأول",
+  location_en: "Amman – Abdoun, behind Housing Bank, First Floor",
+  working_hours_ar:
+    "يوميًا من الساعة 2 ظهرًا حتى الساعة 10 مساءً (الجمعة مغلق)",
+  working_hours_en: "Daily from 2:00 PM to 10:00 PM (Closed on Fridays)",
+  price_ar: "الأسعار تختلف حسب الحالة، ويحدّدها الطبيب بعد الفحص",
+  price_en:
+    "Prices vary depending on the case. The doctor will confirm the cost after the consultation",
+};
 
-// ✅ Global variable to store clinic settings
-let clinicSettings = null;
-
-// ✅ Load clinic settings from database
-async function loadClinicSettings() {
-  try {
-    const { data, error } = await supabase
-      .from("clinic_settings")
-      .select("*")
-      .eq("clinic_id", "default")
-      .single();
-
-    if (error) {
-      console.error("❌ Error loading clinic settings:", error);
-      return;
-    }
-
-    clinicSettings = data;
-    console.log("✅ Clinic settings loaded:", clinicSettings?.clinic_name);
-  } catch (err) {
-    console.error("❌ Exception loading clinic settings:", err.message);
-  }
+// ✅ Function to update clinic settings (called from index.js)
+export function setClinicSettings(settings) {
+  clinicSettings = { ...clinicSettings, ...settings };
+  console.log(
+    "✅ Clinic settings updated in aiHelper:",
+    clinicSettings.clinic_name,
+  );
 }
-
-// ✅ Load settings on module initialization
-loadClinicSettings();
 
 // 🔹 كشف لغة المستخدم (عربي أو إنجليزي)
 function detectLanguage(text) {
@@ -43,7 +33,7 @@ function detectLanguage(text) {
 }
 
 // 🤖 الذكاء الاصطناعي الذكي ثنائي اللغة
-async function askAI(userMessage) {
+export async function askAI(userMessage) {
   try {
     console.log("🤖 DEBUG => Sending message to AI:", userMessage);
 
@@ -85,11 +75,11 @@ async function askAI(userMessage) {
 تتحدث العربية الفصحى فقط، ومهمتك هي مساعدة العملاء في:
 - الحجز أو تعديل الموعد.
 - الاستفسار عن العروض.
-- شرح الخدمات العلاجية الشائعة والمعروفة في طب الأسنان فقط.
+- شرح الخدمات العلاجية الشائعة والمعروفة في طب الجلدية فقط.
 - الإجابة عن الأسئلة العامة حول العيادة (الموقع، الأطباء، الدوام).
 
 ⚙️ قواعد صارمة:
-1. لا تخرج عن مواضيع العيادة أو خدمات طب الأسنان المعروفة.
+1. لا تخرج عن مواضيع العيادة أو خدمات طب الجلدية المعروفة.
 2. لا تذكر وجود أخصائيين نفسيين أو أي خدمات نفسية.
 3. إذا سُئلت عن حالة طارئة:
    "في الحالات الطارئة يُرجى الاتصال بالإسعاف 997 أو الدفاع المدني 998 أو الشرطة 999."
@@ -100,32 +90,32 @@ async function askAI(userMessage) {
 7. كن مهذبًا وبأسلوب موظف استقبال حقيقي.
 8. استخدم دائمًا موقع ودوام العيادة كما هو دون تغيير.
 9. بخصوص الأسعار: "${priceAr}"
-10. لا تخترع أو تفسّر أي إجراءات غير موجودة في طب الأسنان المعروف.
-11.إذا ذكر الشخص أنه يريد إيذاء نفسه أو الانتحار، يتم الرد بـ:
-"من فضلك لا تؤذِ نفسك. في الحالات الطارئة يُرجى الاتصال بالطوارئ في السعودية على الرقم 997 فورًا للحصول على المساعدة اللازمة."
-11. اذا سأل شخص عن موقف السيارات او الباركنغ او الباركنج او مصف السيارات او مصفات السيارات و موقف السيارات اخبره ان لدينا موقف سيارات و لدينا مكان مخصص للاطفال.
+10. لا تخترع أو تفسّر أي إجراءات غير موجودة في طب الجلدية المعروف.
+11. إذا ذكر الشخص أنه يريد إيذاء نفسه أو الانتحار، يتم الرد بـ:
+"من فضلك لا تؤذِ نفسك. في الحالات الطارئة يُرجى الاتصال بالطوارئ في الأردن على الرقم 911 فورًا للحصول على المساعدة اللازمة."
+12. اذا سأل شخص عن موقف السيارات او الباركنغ او الباركنج او مصف السيارات او مصفات السيارات و موقف السيارات اخبره ان لدينا موقف سيارات و لدينا مكان مخصص للاطفال.
 
 🔒 قاعدة إضافية لمنع الهلوسة:
 - إذا ذكر المستخدم أي إجراء غير موجود في قائمة الإجراءات الحقيقية أدناه، يجب أن ترد:
-"يبدو أن هذا الإجراء غير معروف في طب الأسنان. هل تقصد أحد خدمات العيادة؟"
+"يبدو أن هذا الإجراء غير معروف في طب الجلدية. هل تقصد أحد خدمات العيادة؟"
 
 ✔️ قائمة الإجراءات الحقيقية فقط (مسموح بالحديث عنها):
-- تنظيف الأسنان
-- تبييض الأسنان
-- حشوات الأسنان
-- علاج العصب (سحب العصب)
-- تقويم الأسنان
-- خلع الأسنان
-- ابتسامة هوليوود (فينير/لومينير)
-- تنظيف اللثة (تنضير اللثة)
-- زراعة الأسنان
-- تركيبات الأسنان (جسور/تيجان)
-- علاج التهاب اللثة
+- فحص الجلد والبشرة
+- علاج حب الشباب
+- علاج التصبغات والبقع
+- إزالة الشعر بالليزر
+- حقن الفيلر والبوتوكس
+- التقشير الكيميائي
+- الميزوثيرابي للبشرة
+- علاج الندبات وآثار الحبوب
+- علاج الأكزيما والصدفية
+- فحص الشامات
+- علاج الهالات السوداء
+- شد البشرة وعلاج التجاعيد
+- جلسات نضارة البشرة
 
 ❌ إجراءات غير حقيقية ويجب رفضها دائمًا (ممنوع شرحها):
 - أي إجراء غير موجود في القائمة المسموحة أعلاه
-
-
 `;
 
     // 🔵 English system prompt (fixed and controlled)
@@ -143,17 +133,16 @@ You only speak English.
 Your job is to help clients with:
 - Booking or rescheduling appointments.
 - Providing prices or offers.
-- Explaining services or treatments.
-- Answering general questions about the clinic (location, doctors, working hours...).
+- Explaining dermatology services or treatments.
+- Answering general questions about the clinic (location, doctors, working hours).
 
 ⚙️ Rules:
-1. Stay strictly within clinic-related topics.
+1. Stay strictly within clinic-related topics and dermatology services.
 2. Never mention therapists or psychological services.
 3. If asked about emergencies — never give advice. Only say:
-   "For emergencies, please contact Saudi emergency services:
-    Ambulance: 997
-    Civil Defense: 998
-    Police: 999."
+   "For emergencies, please contact Jordan emergency services:
+    Police/Ambulance: 911
+    Civil Defense: 199."
 4. Always use the exact clinic details.
 5. If asked about unrelated topics:
    "I can only assist with our clinic's services and appointments."
@@ -163,26 +152,26 @@ Your job is to help clients with:
 9. About pricing: "${priceEn}"
 
 🔒 Anti-hallucination rule:
-If the user mentions ANY dental procedure not on the allowed list below, reply ONLY:
+If the user mentions ANY dermatology procedure not on the allowed list below, reply ONLY:
 "This procedure is not recognized. Do you mean one of our clinic services?"
 
-✔️ Allowed real dental procedures:
-- Cleaning
-- Whitening
-- Fillings
-- Root canal treatment
-- Braces / orthodontics
-- Tooth extraction
-- Hollywood smile (veneers/lumineers)
-- Gum cleaning / scaling
-- Dental implants
-- Crowns / bridges
-- Treatment of gum inflammation
+✔️ Allowed real dermatology procedures:
+- Skin and complexion examination
+- Acne treatment
+- Pigmentation and dark spots treatment
+- Laser hair removal
+- Filler and Botox injections
+- Chemical peeling
+- Mesotherapy for skin
+- Scar and acne marks treatment
+- Eczema and psoriasis treatment
+- Mole examination
+- Dark circles treatment
+- Skin tightening and wrinkle treatment
+- Skin rejuvenation sessions
 
 ❌ Forbidden fake procedures (NEVER describe):
 - Any procedure not listed above
-
-
 `;
 
     const systemPrompt = lang === "ar" ? arabicPrompt : englishPrompt;
@@ -225,7 +214,7 @@ If the user mentions ANY dental procedure not on the allowed list below, reply O
 }
 
 // 🔹 Enhanced AI-based name validation (multilingual + fallback safe)
-async function validateNameWithAI(name) {
+export async function validateNameWithAI(name) {
   try {
     const cleanName = name.trim();
 
@@ -286,5 +275,3 @@ async function validateNameWithAI(name) {
     return true;
   }
 }
-
-module.exports = { askAI, validateNameWithAI };
