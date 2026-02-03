@@ -217,27 +217,36 @@ async function insertBookingToSupabase(booking) {
       `📊 Total bookings in memory: ${inMemoryStorage.bookings.length}`,
     );
 
-    // ✅ ALSO SAVE TO SUPABASE DATABASE
-    const { data, error } = await supabase.from("bookings").insert([
-      {
-        name: booking.name,
-        phone: booking.phone,
-        service: booking.service,
-        appointment: booking.appointment,
-        status: "new",
-        time: new Date().toISOString(),
-      },
-    ]);
+    // ✅ SAVE TO SUPABASE DATABASE WITH CORRECT FIELD NAMES
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert([
+        {
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+          status: "new",
+          time: new Date().toISOString(),
+        },
+      ])
+      .select();
 
     if (error) {
       console.error("❌ Supabase insert error:", error);
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error details:", error.details);
+      console.error("❌ Error hint:", error.hint);
+      console.error("❌ Error code:", error.code);
+      return false;
     } else {
-      console.log("✅ Booking also saved to Supabase database!");
+      console.log("✅ Booking successfully saved to Supabase database!");
+      console.log("✅ Inserted data:", data);
+      return true;
     }
-
-    return true;
   } catch (err) {
-    console.error("❌ Storage error:", err.message);
+    console.error("❌ Storage exception:", err.message);
+    console.error("❌ Full error:", err);
     return false;
   }
 }
@@ -519,12 +528,19 @@ app.post("/webhook", async (req, res) => {
         const booking = tempBookings[from];
         booking.service = id.replace("service_", "");
 
-        await insertBookingToSupabase(booking);
+        const saveSuccess = await insertBookingToSupabase(booking);
 
-        await sendTextMessage(
-          from,
-          `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-        );
+        if (saveSuccess) {
+          await sendTextMessage(
+            from,
+            `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+          );
+        } else {
+          await sendTextMessage(
+            from,
+            `⚠️ تم حفظ الحجز محلياً ولكن حدث خطأ في حفظه بقاعدة البيانات.\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+          );
+        }
 
         delete tempBookings[from];
         markMessageProcessed(from, messageId);
