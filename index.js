@@ -1,11 +1,20 @@
 import express from "express";
 import axios from "axios";
-// ✅ IMPORT THE AI HELPER - THIS WAS MISSING!
 import { askAI, validateNameWithAI } from "./aiHelper.js";
 import { handleAudioMessage } from "./webhookProcessor.js";
+import { createClient } from "@supabase/supabase-js";
 
 const app = express();
 app.use(express.json());
+
+// ==============================
+// 💾 SUPABASE CONNECTION
+// ==============================
+const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==============================
 // 💾 IN-MEMORY STORAGE (replaces Supabase)
@@ -182,7 +191,7 @@ setInterval(() => {
 }, 120000); // 2 minutes
 
 // ==============================
-// 💾 IN-MEMORY BOOKING FUNCTIONS (replaces Supabase)
+// 💾 BOOKING FUNCTIONS (SAVES TO BOTH IN-MEMORY AND SUPABASE)
 // ==============================
 
 async function insertBookingToSupabase(booking) {
@@ -203,8 +212,28 @@ async function insertBookingToSupabase(booking) {
 
     inMemoryStorage.bookings.push(newBooking);
 
-    console.log("✅ Booking saved:", newBooking);
-    console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
+    console.log("✅ Booking saved to memory:", newBooking);
+    console.log(
+      `📊 Total bookings in memory: ${inMemoryStorage.bookings.length}`,
+    );
+
+    // ✅ ALSO SAVE TO SUPABASE DATABASE
+    const { data, error } = await supabase.from("bookings").insert([
+      {
+        name: booking.name,
+        phone: booking.phone,
+        service: booking.service,
+        appointment: booking.appointment,
+        status: "new",
+        time: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      console.error("❌ Supabase insert error:", error);
+    } else {
+      console.log("✅ Booking also saved to Supabase database!");
+    }
 
     return true;
   } catch (err) {
@@ -692,4 +721,5 @@ app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
   console.log("🏥 Clinic:", clinicSettings.clinic_name);
   console.log("💾 Using in-memory storage (data will be lost on restart)");
+  console.log("💾 Also saving to Supabase database");
 });
