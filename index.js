@@ -41,9 +41,9 @@ const DOCTOR_IMAGES = [
 ];
 
 const DOCTOR_INFO = [
-  { name: "د. أحمد الخطيب", specialization: "تقويم الأسنان" },
-  { name: "د. سارة محمود", specialization: "تجميل الأسنان" },
-  { name: "د. خالد العمري", specialization: "طب الأسنان العام" },
+  { name: "د. طارق عورتاني", specialization: " اخصائي جلدية" },
+  { name: "د. ميساء صافي ", specialization: "اخصائية جلدية" },
+  { name: " د . تانيا بيربن ", specialization: "اخصائية جلدية" },
 ];
 
 // ==============================
