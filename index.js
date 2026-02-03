@@ -32,18 +32,17 @@ loadClinicSettings();
 
 // ==============================
 // 📸 DOCTOR DATA
-
 // ==============================
 const DOCTOR_IMAGES = [
-  "https://drive.google.com/file/d/1ibiePCccQytufxR6MREHQsuQcdKEgnHu/view?usp=sharing",
-  "https://drive.google.com/file/d/1oLw96zy3aWwJaOx6mwtZV173B7s5Rb64/view?usp=sharing",
-  "https://drive.google.com/file/d/1UkAzSHARtI-t-T_PCiY4RKcsxtkxR4Jf/view?usp=sharing",
+  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
+  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
+  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
 ];
 
 const DOCTOR_INFO = [
-  { name: "د. طارق عورتاني", specialization: " اخصائي جلدية" },
-  { name: "د. ميساء صافي ", specialization: "اخصائية جلدية" },
-  { name: " د . تانيا بيربن ", specialization: "اخصائية جلدية" },
+  { name: "د. أحمد الخطيب", specialization: "تقويم الأسنان" },
+  { name: "د. سارة محمود", specialization: "تجميل الأسنان" },
+  { name: "د. خالد العمري", specialization: "طب الأسنان العام" },
 ];
 
 // ==============================
