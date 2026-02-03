@@ -1,20 +1,11 @@
 import express from "express";
 import axios from "axios";
+// ✅ IMPORT THE AI HELPER - THIS WAS MISSING!
 import { askAI, validateNameWithAI } from "./aiHelper.js";
 import { handleAudioMessage } from "./webhookProcessor.js";
-import { createClient } from "@supabase/supabase-js";
 
 const app = express();
 app.use(express.json());
-
-// ==============================
-// 💾 SUPABASE CONNECTION
-// ==============================
-const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==============================
 // 💾 IN-MEMORY STORAGE (replaces Supabase)
@@ -191,7 +182,7 @@ setInterval(() => {
 }, 120000); // 2 minutes
 
 // ==============================
-// 💾 BOOKING FUNCTIONS (SAVES TO BOTH IN-MEMORY AND SUPABASE)
+// 💾 IN-MEMORY BOOKING FUNCTIONS (replaces Supabase)
 // ==============================
 
 async function insertBookingToSupabase(booking) {
@@ -212,41 +203,12 @@ async function insertBookingToSupabase(booking) {
 
     inMemoryStorage.bookings.push(newBooking);
 
-    console.log("✅ Booking saved to memory:", newBooking);
-    console.log(
-      `📊 Total bookings in memory: ${inMemoryStorage.bookings.length}`,
-    );
+    console.log("✅ Booking saved:", newBooking);
+    console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
 
-    // ✅ SAVE TO SUPABASE DATABASE WITH CORRECT FIELD NAMES
-    const { data, error } = await supabase
-      .from("bookings")
-      .insert([
-        {
-          name: booking.name,
-          phone: booking.phone,
-          service: booking.service,
-          appointment: booking.appointment,
-          status: "new",
-          time: new Date().toISOString(),
-        },
-      ])
-      .select();
-
-    if (error) {
-      console.error("❌ Supabase insert error:", error);
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error details:", error.details);
-      console.error("❌ Error hint:", error.hint);
-      console.error("❌ Error code:", error.code);
-      return false;
-    } else {
-      console.log("✅ Booking successfully saved to Supabase database!");
-      console.log("✅ Inserted data:", data);
-      return true;
-    }
+    return true;
   } catch (err) {
-    console.error("❌ Storage exception:", err.message);
-    console.error("❌ Full error:", err);
+    console.error("❌ Storage error:", err.message);
     return false;
   }
 }
@@ -528,19 +490,12 @@ app.post("/webhook", async (req, res) => {
         const booking = tempBookings[from];
         booking.service = id.replace("service_", "");
 
-        const saveSuccess = await insertBookingToSupabase(booking);
+        await insertBookingToSupabase(booking);
 
-        if (saveSuccess) {
-          await sendTextMessage(
-            from,
-            `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-          );
-        } else {
-          await sendTextMessage(
-            from,
-            `⚠️ تم حفظ الحجز محلياً ولكن حدث خطأ في حفظه بقاعدة البيانات.\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-          );
-        }
+        await sendTextMessage(
+          from,
+          `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+        );
 
         delete tempBookings[from];
         markMessageProcessed(from, messageId);
@@ -737,5 +692,4 @@ app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
   console.log("🏥 Clinic:", clinicSettings.clinic_name);
   console.log("💾 Using in-memory storage (data will be lost on restart)");
-  console.log("💾 Also saving to Supabase database");
 });
