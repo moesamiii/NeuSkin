@@ -43,11 +43,9 @@ export async function askAI(userMessage) {
     // ✅ Get dynamic clinic data or use defaults
     const clinicName = clinicSettings?.clinic_name || "عيادة ابتسامة";
     const locationAr =
-      clinicSettings?.location_ar ||
-      "عمّان – عبدون، خلف بنك الإسكان، الطابق الأول";
+      clinicSettings?.location_ar || "الرياض - طريق الملك خالد ";
     const locationEn =
-      clinicSettings?.location_en ||
-      "Amman – Abdoun, behind Housing Bank, First Floor";
+      clinicSettings?.location_en || "Riyadh - king khaled road ";
     const workingHoursAr =
       clinicSettings?.working_hours_ar ||
       "يوميًا من الساعة 2 ظهرًا حتى الساعة 10 مساءً (الجمعة مغلق)";

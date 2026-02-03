@@ -14,7 +14,7 @@ const inMemoryStorage = {
   bookings: [], // Store bookings here
   settings: {
     clinic_id: "default",
-    clinic_name: "عيادة ابتسامة",
+    clinic_name: "عيادة نيو سكن",
     booking_times: ["3 PM", "6 PM", "9 PM"],
   },
 };
