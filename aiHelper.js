@@ -6,9 +6,10 @@ const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // ✅ Global variable to store clinic settings (will be set by index.js)
 let clinicSettings = {
-  clinic_name: "عيادة ابتسامة",
-  location_ar: "عمّان – عبدون، خلف بنك الإسكان، الطابق الأول",
-  location_en: "Amman – Abdoun, behind Housing Bank, First Floor",
+  clinic_name: "عيادة نيو سكن",
+  location_ar: "الرياض – طريق الملك خالد",
+  location_en: "Riyadh – King Khalid Road",
+
   working_hours_ar:
     "يوميًا من الساعة 2 ظهرًا حتى الساعة 10 مساءً (الجمعة مغلق)",
   working_hours_en: "Daily from 2:00 PM to 10:00 PM (Closed on Fridays)",
