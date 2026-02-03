@@ -36,8 +36,8 @@ loadClinicSettings();
 
 const DOCTOR_IMAGES = [
   "https://drive.google.com/uc?export=view&id=1ibiePCccQytufxR6MREHQsuQcdKEgnHu",
-  "https://drive.google.com/file/d/1oLw96zy3aWwJaOx6mwtZV173B7s5Rb64/view?usp=sharing",
-  "https://drive.google.com/file/d/1UkAzSHARtI-t-T_PCiY4RKcsxtkxR4Jf/view?usp=sharing",
+  "https://drive.google.com/uc?export=view&id=1oLw96zy3aWwJaOx6mwtZV173B7s5Rb64",
+  "https://drive.google.com/uc?export=view&id=1UkAzSHARtI-t-T_PCiY4RKcsxtkxR4Jf",
 ];
 
 const DOCTOR_INFO = [
