@@ -89,6 +89,19 @@ const DOCTOR_INFO = [
   { name: "د. ميساء صافي", specialization: "اخصائية جلدية" },
 ];
 
+const SERVICE_MAP = {
+  service_skin_check: "فحص الجلد والبشرة",
+  service_acne_treatment: "علاج حب الشباب",
+  service_pigmentation: "علاج التصبغات والبقع",
+  service_laser_hair_removal: "إزالة الشعر بالليزر",
+  service_moles_check: "فحص الشامات",
+  service_filler_botox: "حقن الفيلر والبوتوكس",
+  service_chemical_peel: "التقشير الكيميائي",
+  service_mesotherapy: "الميزوثيرابي للبشرة",
+  service_scars_treatment: "علاج الندبات وآثار الحبوب",
+  service_skin_refresh: "جلسات نضارة البشرة",
+};
+
 /* =========================================================
    🛡️ ANTI-SPAM & RATE LIMIT
    ========================================================= */
@@ -398,18 +411,41 @@ async function sendServiceList(to) {
           button: "الخدمات",
           sections: [
             {
-              title: "الخدمات",
+              title: "خدمات الجلد والبشرة",
               rows: [
-                { id: "service_فحص عام", title: "فحص عام" },
-                { id: "service_تنظيف الأسنان", title: "تنظيف الأسنان" },
-                { id: "service_تبييض الأسنان", title: "تبييض الأسنان" },
+                { id: "service_skin_check", title: "فحص الجلد والبشرة" },
+                { id: "service_acne_treatment", title: "علاج حب الشباب" },
+                { id: "service_pigmentation", title: "علاج التصبغات والبقع" },
+                {
+                  id: "service_laser_hair_removal",
+                  title: "إزالة الشعر بالليزر",
+                },
+                { id: "service_moles_check", title: "فحص الشامات" },
+              ],
+            },
+            {
+              title: "العلاجات التجميلية",
+              rows: [
+                { id: "service_filler_botox", title: "حقن الفيلر والبوتوكس" },
+                { id: "service_chemical_peel", title: "التقشير الكيميائي" },
+                { id: "service_mesotherapy", title: "الميزوثيرابي للبشرة" },
+                {
+                  id: "service_scars_treatment",
+                  title: "علاج الندبات وآثار الحبوب",
+                },
+                { id: "service_skin_refresh", title: "جلسات نضارة البشرة" },
               ],
             },
           ],
         },
       },
     },
-    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    },
   );
 }
 
@@ -520,7 +556,8 @@ app.post("/webhook", async (req, res) => {
       // Service selected - complete booking
       if (id.startsWith("service_")) {
         const booking = tempBookings[from];
-        booking.service = id.replace("service_", "");
+
+        booking.service = SERVICE_MAP[id] || id.replace("service_", "");
 
         const saved = await insertBooking(booking);
 
