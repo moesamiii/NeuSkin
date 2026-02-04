@@ -411,29 +411,11 @@ async function sendServiceList(to) {
           button: "الخدمات",
           sections: [
             {
-              title: "خدمات الجلد والبشرة",
+              title: "الخدمات",
               rows: [
-                { id: "service_skin_check", title: "فحص الجلد والبشرة" },
-                { id: "service_acne_treatment", title: "علاج حب الشباب" },
-                { id: "service_pigmentation", title: "علاج التصبغات والبقع" },
-                {
-                  id: "service_laser_hair_removal",
-                  title: "إزالة الشعر بالليزر",
-                },
-                { id: "service_moles_check", title: "فحص الشامات" },
-              ],
-            },
-            {
-              title: "العلاجات التجميلية",
-              rows: [
-                { id: "service_filler_botox", title: "حقن الفيلر والبوتوكس" },
-                { id: "service_chemical_peel", title: "التقشير الكيميائي" },
-                { id: "service_mesotherapy", title: "الميزوثيرابي للبشرة" },
-                {
-                  id: "service_scars_treatment",
-                  title: "علاج الندبات وآثار الحبوب",
-                },
-                { id: "service_skin_refresh", title: "جلسات نضارة البشرة" },
+                { id: "service_فحص عام", title: "فحص عام" },
+                { id: "service_تنظيف الأسنان", title: "تنظيف الأسنان" },
+                { id: "service_تبييض الأسنان", title: "تبييض الأسنان" },
               ],
             },
           ],
@@ -443,6 +425,7 @@ async function sendServiceList(to) {
     { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
   );
 }
+
 /* =========================================================
    🧠 INTENT DETECTION HELPERS
    ========================================================= */
