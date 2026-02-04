@@ -286,35 +286,53 @@ async function findBookingByPhone(phone) {
 }
 
 // CANCEL BOOKING
+// CANCEL BOOKING
 async function cancelBooking(booking) {
   try {
-    const { error } = await supabase
+    console.log("🔄 Attempting to cancel booking:", booking.id);
+
+    const { data, error } = await supabase
       .from("bookings")
       .update({
         status: "canceled",
         canceled_at: new Date().toISOString(),
       })
-      .eq("id", booking.id);
+      .eq("id", booking.id)
+      .select(); // ✅ Add .select() to get confirmation
 
     if (error) {
       console.error("❌ Cancel booking error:", error.message);
+      console.error("Error details:", error);
       return false;
     }
 
-    console.log("✅ Booking canceled in Supabase");
+    if (!data || data.length === 0) {
+      console.error("❌ No booking was updated");
+      return false;
+    }
+
+    console.log("✅ Booking canceled in Supabase:", data[0]);
 
     // Insert into booking_history
-    await supabase.from("booking_history").insert([
-      {
-        booking_id: booking.id,
-        action: "canceled",
-        note: "Booking canceled via WhatsApp",
-      },
-    ]);
+    const { error: historyError } = await supabase
+      .from("booking_history")
+      .insert([
+        {
+          booking_id: booking.id,
+          action: "canceled",
+          note: "Booking canceled via WhatsApp",
+        },
+      ]);
+
+    if (historyError) {
+      console.warn("⚠️ Failed to insert history:", historyError.message);
+      // Still return true because booking was canceled
+    }
 
     return true;
   } catch (err) {
     console.error("❌ Cancel booking exception:", err.message);
+    console.error("Full error:", err);
     return false;
   }
 }
