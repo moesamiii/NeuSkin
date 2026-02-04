@@ -268,20 +268,22 @@ async function findBookingByPhone(phone) {
       .eq("phone", phone)
       .eq("status", "new")
       .order("created_at", { ascending: false })
-      .limit(1); // ❌ Remove .single()
+      .limit(1)
+      .single(); // ❌ OLD CODE - REMOVE THIS LINE
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       console.log("❌ No booking found for phone:", phone);
       return null;
     }
 
-    console.log("✅ Booking found:", data[0]);
-    return data[0]; // Return first result
+    console.log("✅ Booking found:", data);
+    return data;
   } catch (err) {
     console.error("❌ Find booking error:", err.message);
     return null;
   }
 }
+
 // CANCEL BOOKING
 async function cancelBooking(booking) {
   try {
