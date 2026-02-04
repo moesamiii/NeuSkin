@@ -417,6 +417,7 @@ async function sendServiceList(to) {
                 { id: "service_acne_treatment", title: "علاج حب الشباب" },
                 { id: "service_pigmentation", title: "علاج التصبغات" },
                 { id: "service_moles_check", title: "فحص الشامات" },
+                { id: "service_laser_hair_removal", title: "ليزر إزالة شعر" },
               ],
             },
             {
@@ -426,7 +427,6 @@ async function sendServiceList(to) {
                 { id: "service_chemical_peel", title: "تقشير كيميائي" },
                 { id: "service_mesotherapy", title: "ميزوثيرابي" },
                 { id: "service_scars_treatment", title: "علاج الندبات" },
-                { id: "service_laser_hair_removal", title: "ليزر إزالة شعر" },
                 { id: "service_skin_refresh", title: "نضارة البشرة" },
               ],
             },
