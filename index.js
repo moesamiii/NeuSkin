@@ -1,17 +1,16 @@
 import express from "express";
 import axios from "axios";
-// ✅ IMPORT THE AI HELPER - THIS WAS MISSING!
 import { askAI, validateNameWithAI } from "./aiHelper.js";
 import { handleAudioMessage } from "./webhookProcessor.js";
 
 const app = express();
 app.use(express.json());
 
-// ==============================
-// 💾 IN-MEMORY STORAGE (replaces Supabase)
-// ==============================
+/* ==============================
+   💾 IN-MEMORY STORAGE
+================================ */
 const inMemoryStorage = {
-  bookings: [], // Store bookings here
+  bookings: [],
   settings: {
     clinic_id: "default",
     clinic_name: "عيادة نيو سكن",
@@ -19,22 +18,11 @@ const inMemoryStorage = {
   },
 };
 
-// ✅ Global variable to store clinic settings
 let clinicSettings = inMemoryStorage.settings;
 
-// ✅ Load clinic settings (now just uses in-memory data)
-function loadClinicSettings() {
-  clinicSettings = inMemoryStorage.settings;
-  console.log("✅ Clinic settings loaded:", clinicSettings.clinic_name);
-}
-
-// Load settings on startup
-loadClinicSettings();
-
-// ==============================
-// 📸 DOCTOR DATA
-// ==============================
-
+/* ==============================
+   📸 DOCTORS
+================================ */
 const DOCTOR_IMAGES = [
   "https://drive.google.com/uc?export=view&id=1ibiePCccQytufxR6MREHQsuQcdKEgnHu",
   "https://drive.google.com/uc?export=view&id=1oLw96zy3aWwJaOx6mwtZV173B7s5Rb64",
@@ -42,83 +30,59 @@ const DOCTOR_IMAGES = [
 ];
 
 const DOCTOR_INFO = [
-  { name: "د. طارق عورتاني", specialization: " اخصائي جلدية" },
-  { name: "د. ميساء صافي ", specialization: "اخصائية جلدية" },
-  { name: " د . تانيا بيربن ", specialization: "اخصائية جلدية" },
+  { name: "د. طارق عورتاني", specialization: "اخصائي جلدية" },
+  { name: "د. ميساء صافي", specialization: "اخصائية جلدية" },
+  { name: "د. تانيا بيربن", specialization: "اخصائية جلدية" },
 ];
 
-// ==============================
-// 🛡️ SPAM PROTECTION - DUPLICATE MESSAGE DETECTION
-// ==============================
-const userMessageTimestamps = {}; // Track message timestamps per user
-const userLastMessages = {}; // Track last message content per user
-const processingMessages = {}; // Track messages currently being processed
+/* ==============================
+   🛡️ SPAM PROTECTION
+================================ */
+const userMessageTimestamps = {};
+const userLastMessages = {};
+const processingMessages = {};
 
 const RATE_LIMIT_CONFIG = {
-  DUPLICATE_WINDOW_MS: 5000, // Ignore duplicate messages within 5 seconds
-  MAX_MESSAGES_PER_WINDOW: 10, // Max messages allowed in time window
-  TIME_WINDOW_MS: 30000, // 30 seconds
-  PROCESSING_TIMEOUT_MS: 10000, // Max time to process a message
+  DUPLICATE_WINDOW_MS: 5000,
+  MAX_MESSAGES_PER_WINDOW: 10,
+  TIME_WINDOW_MS: 30000,
+  PROCESSING_TIMEOUT_MS: 10000,
 };
 
 function isDuplicateMessage(userId, messageText) {
   const now = Date.now();
-
-  // Initialize tracking if not exists
   if (!userLastMessages[userId]) {
     userLastMessages[userId] = { text: "", timestamp: 0 };
   }
-
-  // Check if this is a duplicate message
   const lastMsg = userLastMessages[userId];
   const isDuplicate =
     lastMsg.text === messageText &&
     now - lastMsg.timestamp < RATE_LIMIT_CONFIG.DUPLICATE_WINDOW_MS;
-
-  // Update last message
   userLastMessages[userId] = { text: messageText, timestamp: now };
-
   return isDuplicate;
 }
 
 function checkRateLimit(userId) {
   const now = Date.now();
-
-  // Initialize user tracking if not exists
   if (!userMessageTimestamps[userId]) {
     userMessageTimestamps[userId] = [];
   }
-
-  // Remove timestamps outside the time window
   userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(
     (timestamp) => now - timestamp < RATE_LIMIT_CONFIG.TIME_WINDOW_MS,
   );
-
-  // Check if user exceeded rate limit
   if (
     userMessageTimestamps[userId].length >=
     RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_WINDOW
   ) {
-    console.log(`⚠️ Rate limit exceeded for ${userId} - silently ignoring`);
-    return {
-      allowed: false,
-      rateLimited: true,
-    };
+    console.log(`⚠️ Rate limit exceeded for ${userId}`);
+    return { allowed: false, rateLimited: true };
   }
-
-  // Add current timestamp
   userMessageTimestamps[userId].push(now);
-
-  return {
-    allowed: true,
-    rateLimited: false,
-  };
+  return { allowed: true, rateLimited: false };
 }
 
 function isMessageBeingProcessed(userId, messageId) {
   const now = Date.now();
-
-  // Clean up old processing entries
   for (const key in processingMessages) {
     if (
       now - processingMessages[key] >
@@ -127,40 +91,27 @@ function isMessageBeingProcessed(userId, messageId) {
       delete processingMessages[key];
     }
   }
-
   const processingKey = `${userId}:${messageId}`;
-
-  // Check if message is already being processed
-  if (processingMessages[processingKey]) {
-    return true;
-  }
-
-  // Mark message as being processed
+  if (processingMessages[processingKey]) return true;
   processingMessages[processingKey] = now;
   return false;
 }
 
 function markMessageProcessed(userId, messageId) {
-  const processingKey = `${userId}:${messageId}`;
-  delete processingMessages[processingKey];
+  delete processingMessages[`${userId}:${messageId}`];
 }
 
-// Clean up old data every 2 minutes
+// Cleanup interval
 setInterval(() => {
   const now = Date.now();
-
-  // Clean up message timestamps
   for (const userId in userMessageTimestamps) {
     userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(
       (timestamp) => now - timestamp < RATE_LIMIT_CONFIG.TIME_WINDOW_MS,
     );
-
     if (userMessageTimestamps[userId].length === 0) {
       delete userMessageTimestamps[userId];
     }
   }
-
-  // Clean up last messages
   for (const userId in userLastMessages) {
     if (
       now - userLastMessages[userId].timestamp >
@@ -169,8 +120,6 @@ setInterval(() => {
       delete userLastMessages[userId];
     }
   }
-
-  // Clean up processing messages
   for (const key in processingMessages) {
     if (
       now - processingMessages[key] >
@@ -179,18 +128,14 @@ setInterval(() => {
       delete processingMessages[key];
     }
   }
-}, 120000); // 2 minutes
+}, 120000);
 
-// ==============================
-// 💾 IN-MEMORY BOOKING FUNCTIONS (replaces Supabase)
-// ==============================
-
-async function insertBookingToSupabase(booking) {
+/* ==============================
+   💾 DATABASE FUNCTIONS
+================================ */
+async function insertBooking(booking) {
   try {
-    // Generate unique ID
     const id = Date.now().toString();
-
-    // Add booking to in-memory storage
     const newBooking = {
       id,
       name: booking.name,
@@ -200,70 +145,53 @@ async function insertBookingToSupabase(booking) {
       status: "new",
       created_at: new Date().toISOString(),
     };
-
     inMemoryStorage.bookings.push(newBooking);
-
     console.log("✅ Booking saved:", newBooking);
     console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
-
     return true;
   } catch (err) {
-    console.error("❌ Storage error:", err.message);
+    console.error("❌ Insert error:", err.message);
     return false;
   }
 }
 
-// ✅ Find booking by phone
 async function findBookingByPhone(phone) {
   try {
-    // Find the most recent booking with matching phone and status "new"
     const matchingBookings = inMemoryStorage.bookings
       .filter((b) => b.phone === phone && b.status === "new")
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
     if (matchingBookings.length === 0) {
       console.log("❌ No booking found for phone:", phone);
       return null;
     }
-
     console.log("✅ Booking found:", matchingBookings[0]);
     return matchingBookings[0];
   } catch (err) {
-    console.error("❌ Find booking exception:", err.message);
+    console.error("❌ Find booking error:", err.message);
     return null;
   }
 }
 
-// ✅ Cancel booking
 async function cancelBooking(id) {
   try {
     const booking = inMemoryStorage.bookings.find((b) => b.id === id);
-
     if (!booking) {
       console.log("❌ Booking not found with id:", id);
       return false;
     }
-
     booking.status = "canceled";
     booking.canceled_at = new Date().toISOString();
-
     console.log("✅ Booking canceled:", booking);
     return true;
   } catch (err) {
-    console.error("❌ Cancel booking exception:", err.message);
+    console.error("❌ Cancel error:", err.message);
     return false;
   }
 }
 
-// ==============================
-// ❌ REMOVED - NOW USING aiHelper.js
-// The askAI function is now imported from aiHelper.js
-// which has much better prompts and clinic information
-// ==============================
-
-// ==============================
-// 📞 WHATSAPP
-// ==============================
+/* ==============================
+   📞 WHATSAPP
+================================ */
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
@@ -279,7 +207,6 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// ✅ Send image message
 async function sendImageMessage(to, imageUrl, caption) {
   try {
     await axios.post(
@@ -288,10 +215,7 @@ async function sendImageMessage(to, imageUrl, caption) {
         messaging_product: "whatsapp",
         to,
         type: "image",
-        image: {
-          link: imageUrl,
-          caption: caption,
-        },
+        image: { link: imageUrl, caption },
       },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
     );
@@ -300,35 +224,31 @@ async function sendImageMessage(to, imageUrl, caption) {
   }
 }
 
-// ✅ Send doctor info
 async function sendDoctorInfo(to) {
   await sendTextMessage(to, "👨‍⚕️ فريق الأطباء لدينا:");
-
   for (let i = 0; i < DOCTOR_INFO.length; i++) {
-    const doctor = DOCTOR_INFO[i];
-    const caption = `${doctor.name}\n${doctor.specialization}`;
-    await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
+    await sendImageMessage(
+      to,
+      DOCTOR_IMAGES[i],
+      `${DOCTOR_INFO[i].name}\n${DOCTOR_INFO[i].specialization}`,
+    );
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 
 async function sendAppointmentOptions(to) {
-  // ✅ Get dynamic booking times or use defaults
   const bookingTimes = clinicSettings?.booking_times || [
     "3 PM",
     "6 PM",
     "9 PM",
   ];
-
-  // ✅ Build buttons dynamically from settings
-  const buttons = bookingTimes.slice(0, 3).map((time) => ({
+  const buttons = bookingTimes.slice(0, 3).map((t) => ({
     type: "reply",
     reply: {
-      id: `slot_${time.toLowerCase().replace(/\s/g, "")}`,
-      title: time,
+      id: `slot_${t.toLowerCase().replace(/\s/g, "")}`,
+      title: t,
     },
   }));
-
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
     {
@@ -337,7 +257,7 @@ async function sendAppointmentOptions(to) {
       type: "interactive",
       interactive: {
         type: "button",
-        body: { text: "📅 اختر الموعد المناسب لك:" },
+        body: { text: "📅 اختر الموعد المناسب:" },
         action: { buttons },
       },
     },
@@ -374,39 +294,35 @@ async function sendServiceList(to) {
   );
 }
 
-// ==============================
-// 🧠 BOOKING & CANCEL STATE
-// ==============================
+/* ==============================
+   🧠 STATE & INTENT DETECTION
+================================ */
 const tempBookings = {};
-const cancelSessions = {}; // Track users waiting to cancel
+const cancelSessions = {};
 
-// ✅ Booking intent detection
 function isBookingRequest(text) {
   return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
 }
 
-// ✅ Cancel intent detection
 function isCancelRequest(text) {
   return /(الغاء|إلغاء|الغي|كنسل|cancel)/i.test(text);
 }
 
-// ✅ Doctor request detection
 function isDoctorRequest(text) {
   return /(طبيب|اطباء|أطباء|الاطباء|الأطباء|دكتور|دكاترة|doctor|doctors)/i.test(
     text,
   );
 }
 
-// ✅ Reset/Start request detection
 function isResetRequest(text) {
   return /(reset|start|عيد من اول|ابدا من جديد|ابدأ من جديد|من البداية|بداية جديدة|restart|new chat|ابدا|ابدأ|عيد)/i.test(
     text,
   );
 }
 
-// ==============================
-// 📩 WEBHOOK
-// ==============================
+/* ==============================
+   📩 WEBHOOK
+================================ */
 app.post("/webhook", async (req, res) => {
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   if (!message) return res.sendStatus(200);
@@ -414,43 +330,39 @@ app.post("/webhook", async (req, res) => {
   const from = message.from;
   const messageId = message.id;
 
-  // ✅ CHECK IF MESSAGE IS ALREADY BEING PROCESSED
+  // Check if already processing
   if (isMessageBeingProcessed(from, messageId)) {
-    console.log(
-      `🔄 Message ${messageId} from ${from} is already being processed - ignoring duplicate`,
-    );
+    console.log(`🔄 Message ${messageId} already processing - ignoring`);
     return res.sendStatus(200);
   }
 
   try {
-    // ✅ DUPLICATE MESSAGE DETECTION
+    // Duplicate detection
     if (message.type === "text") {
       const text = message.text.body;
-
       if (isDuplicateMessage(from, text)) {
-        console.log(`🔁 Duplicate message from ${from}: "${text}" - ignoring`);
+        console.log(`🔁 Duplicate message from ${from} - ignoring`);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
     }
 
-    // ✅ RATE LIMIT CHECK
+    // Rate limit check
     const rateLimitCheck = checkRateLimit(from);
-
     if (!rateLimitCheck.allowed) {
-      console.log(`⚠️ Rate limited user ${from} - silently ignoring`);
+      console.log(`⚠️ Rate limited user ${from}`);
       markMessageProcessed(from, messageId);
       return res.sendStatus(200);
     }
 
-    // ✅ VOICE MESSAGE HANDLING
+    // Voice message handling
     if (message.type === "audio") {
       console.log("🎙️ Voice message received from", from);
       try {
         await handleAudioMessage(
           message,
           from,
-          askAI, // ✅ NOW USING THE IMPORTED askAI FROM aiHelper.js
+          askAI,
           sendTextMessage,
           sendAppointmentOptions,
           sendServiceList,
@@ -471,11 +383,11 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // ---------------- BUTTONS ----------------
+    // Interactive buttons
     if (message.type === "interactive") {
       const id =
-        message.interactive?.list_reply?.id ||
-        message.interactive?.button_reply?.id;
+        message.interactive?.button_reply?.id ||
+        message.interactive?.list_reply?.id;
 
       if (id.startsWith("slot_")) {
         tempBookings[from] = {
@@ -489,89 +401,66 @@ app.post("/webhook", async (req, res) => {
       if (id.startsWith("service_")) {
         const booking = tempBookings[from];
         booking.service = id.replace("service_", "");
-
-        await insertBookingToSupabase(booking);
-
+        await insertBooking(booking);
         await sendTextMessage(
           from,
           `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
         );
-
         delete tempBookings[from];
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
     }
 
-    // ---------------- TEXT ----------------
+    // Text messages
     if (message.type === "text") {
       const text = message.text.body;
-
       console.log("📩 Message from:", from, "Text:", text);
 
-      // ✅ PRIORITY 0: RESET/START DETECTION (HIGHEST PRIORITY!)
+      // PRIORITY 0: Reset/Start
       if (isResetRequest(text)) {
-        console.log("🔄 Reset request detected!");
-
-        // Clear all user sessions
+        console.log("🔄 Reset request detected");
         delete tempBookings[from];
         delete cancelSessions[from];
-
-        // ✅ Use detectLanguage from aiHelper
         const lang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
         const clinicName =
           clinicSettings?.clinic_name ||
           (lang === "ar" ? "عيادة ابتسامة" : "Ibtisama Clinic");
-
         const greeting =
           lang === "ar"
             ? `👋 مرحباً بك في ${clinicName}!\n\nكيف يمكنني مساعدتك اليوم؟`
             : `👋 Hello! Welcome to ${clinicName}!\n\nHow can I help you today?`;
-
         await sendTextMessage(from, greeting);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 1: CANCEL DETECTION (MUST BE FIRST!)
+      // PRIORITY 1: Cancel detection
       if (isCancelRequest(text) && !tempBookings[from]) {
-        console.log("🚫 Cancel request detected!");
-
+        console.log("🚫 Cancel request detected");
         cancelSessions[from] = true;
-
-        // Clear any ongoing booking
-        if (tempBookings[from]) {
-          delete tempBookings[from];
-        }
-
+        if (tempBookings[from]) delete tempBookings[from];
         await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 2: User is in cancel flow - waiting for phone
+      // PRIORITY 2: Cancel flow - waiting for phone
       if (cancelSessions[from]) {
         const phone = text.replace(/\D/g, "");
-
         if (phone.length < 8) {
           await sendTextMessage(from, "⚠️ رقم الجوال غير صحيح. حاول مجددًا:");
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
-
-        // Find booking
         const booking = await findBookingByPhone(phone);
-
         if (!booking) {
           await sendTextMessage(from, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
           delete cancelSessions[from];
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
-
-        // Cancel it
         const success = await cancelBooking(booking.id);
-
         if (success) {
           await sendTextMessage(
             from,
@@ -580,20 +469,19 @@ app.post("/webhook", async (req, res) => {
         } else {
           await sendTextMessage(from, "⚠️ حدث خطأ أثناء الإلغاء.");
         }
-
         delete cancelSessions[from];
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 3: Doctor request
+      // PRIORITY 3: Doctor request
       if (!tempBookings[from] && isDoctorRequest(text)) {
         await sendDoctorInfo(from);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 4: Start booking
+      // PRIORITY 4: Start booking
       if (!tempBookings[from] && isBookingRequest(text)) {
         console.log("📅 Starting booking for:", from);
         tempBookings[from] = {};
@@ -602,24 +490,21 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 5: In booking flow - collect name
+      // PRIORITY 5: Collect name
       if (tempBookings[from] && !tempBookings[from].name) {
-        // ✅ VALIDATE NAME USING AI
         const isValidName = await validateNameWithAI(text);
-
         if (!isValidName) {
           await sendTextMessage(from, "⚠️ الرجاء إدخال اسم صحيح:");
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
-
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 أرسل رقم الجوال:");
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 6: In booking flow - collect phone
+      // PRIORITY 6: Collect phone
       if (tempBookings[from] && !tempBookings[from].phone) {
         tempBookings[from].phone = text.replace(/\D/g, "");
         await sendServiceList(from);
@@ -627,10 +512,9 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ PRIORITY 7: General question - send to AI
-      // ✅ NOW USING THE COMPREHENSIVE askAI FROM aiHelper.js
+      // PRIORITY 7: General question - AI
       if (!tempBookings[from]) {
-        const reply = await askAI(text); // ✅ This now has all the clinic info!
+        const reply = await askAI(text);
         await sendTextMessage(from, reply);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
@@ -646,28 +530,30 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// ✅ Webhook verification
+/* ==============================
+   🔐 WEBHOOK VERIFICATION
+================================ */
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  console.log("🔍 Webhook verification request:");
+  console.log("🔍 Webhook verification:");
   console.log("Mode:", mode);
-  console.log("Token received:", token);
-  console.log("Token expected:", process.env.VERIFY_TOKEN);
-  console.log("Challenge:", challenge);
+  console.log("Token:", token);
+  console.log("Expected:", process.env.VERIFY_TOKEN);
 
   if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
-    console.log("✅ Webhook verification successful!");
-    res.status(200).send(challenge);
-  } else {
-    console.log("❌ Webhook verification failed!");
-    res.sendStatus(403);
+    console.log("✅ Verification successful");
+    return res.status(200).send(challenge);
   }
+  console.log("❌ Verification failed");
+  res.sendStatus(403);
 });
 
-// ✅ Health check endpoint
+/* ==============================
+   🏥 HEALTH & INFO ENDPOINTS
+================================ */
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
@@ -678,7 +564,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// ✅ View all bookings (for testing - remove in production!)
 app.get("/bookings", (req, res) => {
   res.json({
     total: inMemoryStorage.bookings.length,
@@ -686,7 +571,9 @@ app.get("/bookings", (req, res) => {
   });
 });
 
-// ==============================
+/* ==============================
+   🚀 START SERVER
+================================ */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
