@@ -398,23 +398,35 @@ async function sendServiceList(to) {
           button: "الخدمات",
           sections: [
             {
-              title: "خدمات الجلد والبشرة",
+              title: "الخدمات",
               rows: [
-                { id: "skin_check", title: "فحص الجلد والبشرة" },
-                { id: "acne_treatment", title: "علاج حب الشباب" },
-                { id: "pigmentation_treatment", title: "علاج التصبغات والبقع" },
-                { id: "laser_hair_removal", title: "إزالة الشعر بالليزر" },
-                { id: "filler_botox", title: "حقن الفيلر والبوتوكس" },
-              ],
-            },
-            {
-              title: "جلسات وعلاجات تجميلية",
-              rows: [
-                { id: "chemical_peel", title: "التقشير الكيميائي" },
-                { id: "mesotherapy", title: "الميزوثيرابي للبشرة" },
-                { id: "scar_treatment", title: "علاج الندبات وآثار الحبوب" },
-                { id: "eczema_psoriasis", title: "علاج الأكزيما والصدفية" },
-                { id: "skin_refresh", title: "جلسات نضارة البشرة" },
+                { id: "service_فحص الجلد والبشرة", title: "فحص الجلد والبشرة" },
+                { id: "service_علاج حب الشباب", title: "علاج حب الشباب" },
+                {
+                  id: "service_علاج التصبغات والبقع",
+                  title: "علاج التصبغات والبقع",
+                },
+                {
+                  id: "service_إزالة الشعر بالليزر",
+                  title: "إزالة الشعر بالليزر",
+                },
+                {
+                  id: "service_حقن الفيلر والبوتوكس",
+                  title: "حقن الفيلر والبوتوكس",
+                },
+                { id: "service_التقشير الكيميائي", title: "التقشير الكيميائي" },
+                {
+                  id: "service_الميزوثيرابي للبشرة",
+                  title: "الميزوثيرابي للبشرة",
+                },
+                {
+                  id: "service_علاج الندبات وآثار الحبوب",
+                  title: "علاج الندبات وآثار الحبوب",
+                },
+                {
+                  id: "service_علاج الأكزيما والصدفية",
+                  title: "علاج الأكزيما والصدفية",
+                },
               ],
             },
           ],
