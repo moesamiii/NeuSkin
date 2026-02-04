@@ -610,13 +610,14 @@ app.post("/webhook", async (req, res) => {
       }
 
       // PRIORITY 1: CANCEL DETECTION
-      if (isCancelRequest(text) && !tempBookings[from]) {
+      // PRIORITY 1: CANCEL DETECTION
+      if (isCancelRequest(text) && !cancelSessions[from]) {
+        // ✅ CORRECT
         console.log("🚫 Cancel request detected");
         cancelSessions[from] = true;
 
-        if (tempBookings[from]) {
-          delete tempBookings[from];
-        }
+        // Clear any active booking
+        delete tempBookings[from];
 
         await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
         markMessageProcessed(from, messageId);
