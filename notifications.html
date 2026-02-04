@@ -441,7 +441,7 @@
             const { data, error } = await supabaseClient
               .from("bookings")
               .select("*")
-              .order("time", { ascending: false });
+              .order("created_at", { ascending: false });
 
             if (!error && data) {
               allBookings = data;
@@ -472,7 +472,7 @@
 
         container.innerHTML = filteredBookings
           .map((booking) => {
-            const timeAgo = getTimeAgo(booking.time);
+            const timeAgo = getTimeAgo(booking.created_at || booking.time);
             return `
         <div class="notification-item">
           <div class="notification-icon">
@@ -545,23 +545,25 @@
       function filterByTime(period, btn) {
         setActiveButton(btn);
         const now = new Date();
+        now.setHours(23, 59, 59, 999);
 
         filteredBookings = allBookings.filter((booking) => {
-          if (!booking.time) return false;
+          const dateField = booking.created_at || booking.time;
+          if (!dateField) return false;
 
-          const date = new Date(booking.time);
+          const date = new Date(dateField);
           if (isNaN(date.getTime())) return false;
 
           if (period === "day") {
-            return (
-              date.getFullYear() === now.getFullYear() &&
-              date.getMonth() === now.getMonth() &&
-              date.getDate() === now.getDate()
-            );
+            const startOfDay = new Date(now);
+            startOfDay.setHours(0, 0, 0, 0);
+            return date >= startOfDay && date <= now;
           }
 
           if (period === "week") {
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const weekAgo = new Date(now);
+            weekAgo.setDate(now.getDate() - 7);
+            weekAgo.setHours(0, 0, 0, 0);
             return date >= weekAgo && date <= now;
           }
 
@@ -593,7 +595,7 @@
           b.phone || "-",
           b.service || "-",
           b.appointment || "-",
-          b.time || "-",
+          b.created_at || b.time || "-",
         ]);
 
         const worksheetData = [headers, ...rows];
