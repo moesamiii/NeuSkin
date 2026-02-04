@@ -411,29 +411,23 @@ async function sendServiceList(to) {
           button: "الخدمات",
           sections: [
             {
-              title: "خدمات الجلد والبشرة",
+              title: "خدمات الجلد",
               rows: [
                 { id: "service_skin_check", title: "فحص الجلد والبشرة" },
                 { id: "service_acne_treatment", title: "علاج حب الشباب" },
-                { id: "service_pigmentation", title: "علاج التصبغات والبقع" },
-                {
-                  id: "service_laser_hair_removal",
-                  title: "إزالة الشعر بالليزر",
-                },
+                { id: "service_pigmentation", title: "علاج التصبغات" },
                 { id: "service_moles_check", title: "فحص الشامات" },
               ],
             },
             {
               title: "العلاجات التجميلية",
               rows: [
-                { id: "service_filler_botox", title: "حقن الفيلر والبوتوكس" },
-                { id: "service_chemical_peel", title: "التقشير الكيميائي" },
-                { id: "service_mesotherapy", title: "الميزوثيرابي للبشرة" },
-                {
-                  id: "service_scars_treatment",
-                  title: "علاج الندبات وآثار الحبوب",
-                },
-                { id: "service_skin_refresh", title: "جلسات نضارة البشرة" },
+                { id: "service_filler_botox", title: "فيلر وبوتوكس" },
+                { id: "service_chemical_peel", title: "تقشير كيميائي" },
+                { id: "service_mesotherapy", title: "ميزوثيرابي" },
+                { id: "service_scars_treatment", title: "علاج الندبات" },
+                { id: "service_laser_hair_removal", title: "ليزر إزالة شعر" },
+                { id: "service_skin_refresh", title: "نضارة البشرة" },
               ],
             },
           ],
@@ -448,7 +442,6 @@ async function sendServiceList(to) {
     },
   );
 }
-
 /* =========================================================
    🧠 INTENT DETECTION HELPERS
    ========================================================= */
