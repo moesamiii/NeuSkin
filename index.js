@@ -11,10 +11,10 @@ app.use(express.json());
 // 🗄️ SUPABASE CONFIGURATION
 // ==============================
 const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+const SUPABASE_SERVICE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDgxOTk1NSwiZXhwIjoyMDc2Mzk1OTU1fQ.fDUZCC0HCaiwy8yA0tF4GAY0dcF5ckrhvclwDRoJZ-4";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // ✅ Global variable to store clinic settings
 let clinicSettings = null;
@@ -30,7 +30,6 @@ async function loadClinicSettings() {
 
     if (error) {
       console.error("❌ Error loading clinic settings:", error);
-      // Use default settings if none found
       clinicSettings = {
         clinic_id: "default",
         clinic_name: "عيادة نيو سكن",
@@ -50,7 +49,6 @@ async function loadClinicSettings() {
   }
 }
 
-// Load settings on startup
 loadClinicSettings();
 
 // ==============================
@@ -70,7 +68,7 @@ const DOCTOR_INFO = [
 ];
 
 // ==============================
-// 🛡️ SPAM PROTECTION - DUPLICATE MESSAGE DETECTION
+// 🛡️ SPAM PROTECTION
 // ==============================
 const userMessageTimestamps = {};
 const userLastMessages = {};
@@ -115,19 +113,12 @@ function checkRateLimit(userId) {
     userMessageTimestamps[userId].length >=
     RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_WINDOW
   ) {
-    console.log(`⚠️ Rate limit exceeded for ${userId} - silently ignoring`);
-    return {
-      allowed: false,
-      rateLimited: true,
-    };
+    console.log(`⚠️ Rate limit exceeded for ${userId}`);
+    return { allowed: false, rateLimited: true };
   }
 
   userMessageTimestamps[userId].push(now);
-
-  return {
-    allowed: true,
-    rateLimited: false,
-  };
+  return { allowed: true, rateLimited: false };
 }
 
 function isMessageBeingProcessed(userId, messageId) {
@@ -157,7 +148,6 @@ function markMessageProcessed(userId, messageId) {
   delete processingMessages[processingKey];
 }
 
-// Clean up old data every 2 minutes
 setInterval(() => {
   const now = Date.now();
 
@@ -165,7 +155,6 @@ setInterval(() => {
     userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(
       (timestamp) => now - timestamp < RATE_LIMIT_CONFIG.TIME_WINDOW_MS,
     );
-
     if (userMessageTimestamps[userId].length === 0) {
       delete userMessageTimestamps[userId];
     }
@@ -196,7 +185,6 @@ setInterval(() => {
 
 async function insertBookingToSupabase(booking) {
   try {
-    // Insert booking into Supabase
     const { data, error } = await supabase
       .from("bookings")
       .insert([
@@ -224,7 +212,6 @@ async function insertBookingToSupabase(booking) {
   }
 }
 
-// ✅ Find booking by phone
 async function findBookingByPhone(phone) {
   try {
     const { data, error } = await supabase
@@ -253,7 +240,6 @@ async function findBookingByPhone(phone) {
   }
 }
 
-// ✅ Cancel booking
 async function cancelBooking(id) {
   try {
     const { data, error } = await supabase
@@ -429,9 +415,7 @@ app.post("/webhook", async (req, res) => {
   const messageId = message.id;
 
   if (isMessageBeingProcessed(from, messageId)) {
-    console.log(
-      `🔄 Message ${messageId} from ${from} is already being processed - ignoring duplicate`,
-    );
+    console.log(`🔄 Message ${messageId} from ${from} already processing`);
     return res.sendStatus(200);
   }
 
@@ -440,7 +424,7 @@ app.post("/webhook", async (req, res) => {
       const text = message.text.body;
 
       if (isDuplicateMessage(from, text)) {
-        console.log(`🔁 Duplicate message from ${from}: "${text}" - ignoring`);
+        console.log(`🔁 Duplicate message from ${from}`);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
@@ -449,7 +433,7 @@ app.post("/webhook", async (req, res) => {
     const rateLimitCheck = checkRateLimit(from);
 
     if (!rateLimitCheck.allowed) {
-      console.log(`⚠️ Rate limited user ${from} - silently ignoring`);
+      console.log(`⚠️ Rate limited user ${from}`);
       markMessageProcessed(from, messageId);
       return res.sendStatus(200);
     }
@@ -499,7 +483,6 @@ app.post("/webhook", async (req, res) => {
         const booking = tempBookings[from];
         booking.service = id.replace("service_", "");
 
-        // ✅ SAVE TO SUPABASE
         const success = await insertBookingToSupabase(booking);
 
         if (success) {
@@ -508,10 +491,7 @@ app.post("/webhook", async (req, res) => {
             `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
           );
         } else {
-          await sendTextMessage(
-            from,
-            "⚠️ عذراً، حدث خطأ في حفظ الحجز. الرجاء المحاولة مرة أخرى.",
-          );
+          await sendTextMessage(from, "⚠️ عذراً، حدث خطأ في حفظ الحجز.");
         }
 
         delete tempBookings[from];
@@ -652,12 +632,6 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  console.log("🔍 Webhook verification request:");
-  console.log("Mode:", mode);
-  console.log("Token received:", token);
-  console.log("Token expected:", process.env.VERIFY_TOKEN);
-  console.log("Challenge:", challenge);
-
   if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
     console.log("✅ Webhook verification successful!");
     res.status(200).send(challenge);
@@ -676,7 +650,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// ✅ View all bookings endpoint
 app.get("/bookings", async (req, res) => {
   try {
     const { data, error } = await supabase
