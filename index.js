@@ -260,7 +260,6 @@ async function insertBooking(booking) {
 }
 
 // FIND BOOKING BY PHONE
-// FIND BOOKING BY PHONE
 async function findBookingByPhone(phone) {
   try {
     const { data, error } = await supabase
@@ -269,23 +268,21 @@ async function findBookingByPhone(phone) {
       .eq("phone", phone)
       .eq("status", "new")
       .order("created_at", { ascending: false })
-      .limit(1); // ✅ Removed .single()
+      .limit(1);
 
     if (error || !data || data.length === 0) {
-      // ✅ Check for empty array
       console.log("❌ No booking found for phone:", phone);
       return null;
     }
 
     console.log("✅ Booking found:", data[0]);
-    return data[0]; // ✅ Return first element
+    return data[0];
   } catch (err) {
     console.error("❌ Find booking error:", err.message);
     return null;
   }
 }
 
-// CANCEL BOOKING
 // CANCEL BOOKING
 async function cancelBooking(booking) {
   try {
@@ -298,7 +295,7 @@ async function cancelBooking(booking) {
         canceled_at: new Date().toISOString(),
       })
       .eq("id", booking.id)
-      .select(); // ✅ Add .select() to get confirmation
+      .select();
 
     if (error) {
       console.error("❌ Cancel booking error:", error.message);
@@ -326,7 +323,6 @@ async function cancelBooking(booking) {
 
     if (historyError) {
       console.warn("⚠️ Failed to insert history:", historyError.message);
-      // Still return true because booking was canceled
     }
 
     return true;
@@ -461,6 +457,7 @@ async function sendServiceList(to) {
     },
   );
 }
+
 /* =========================================================
    🧠 INTENT DETECTION HELPERS
    ========================================================= */
@@ -606,6 +603,10 @@ app.post("/webhook", async (req, res) => {
       const text = message.text.body;
       console.log("📩 Message from:", from, "Text:", text);
 
+      // ✅ DEBUG LOGGING
+      console.log("🔍 cancelSessions[from]:", cancelSessions[from]);
+      console.log("🔍 tempBookings[from]:", tempBookings[from]);
+
       // PRIORITY 0: RESET/START (Highest Priority)
       if (isResetRequest(text)) {
         console.log("🔄 Reset request detected");
@@ -627,51 +628,62 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // PRIORITY 1: CANCEL DETECTION
-      if (isCancelRequest(text) && !tempBookings[from]) {
-        console.log("🚫 Cancel request detected");
-        cancelSessions[from] = true;
+      // PRIORITY 1: CANCEL FLOW - Waiting for phone (MOVED BEFORE CANCEL DETECTION!)
+      if (cancelSessions[from] === true) {
+        console.log("🔍 Processing cancel flow - waiting for phone");
 
-        if (tempBookings[from]) {
-          delete tempBookings[from];
-        }
-
-        await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
-      }
-
-      // PRIORITY 2: CANCEL FLOW - Waiting for phone
-      if (cancelSessions[from]) {
         const phone = text.replace(/\D/g, "");
+        console.log("📱 Extracted phone:", phone);
 
         if (phone.length < 8) {
+          console.log("⚠️ Invalid phone length:", phone.length);
           await sendTextMessage(from, "⚠️ رقم الجوال غير صحيح. حاول مجددًا:");
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
 
+        console.log("🔎 Searching for booking...");
         const booking = await findBookingByPhone(phone);
 
         if (!booking) {
+          console.log("❌ No booking found for phone:", phone);
           await sendTextMessage(from, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
           delete cancelSessions[from];
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
 
+        console.log("✅ Booking found:", booking.id);
+        console.log("🔄 Attempting to cancel...");
         const success = await cancelBooking(booking);
 
         if (success) {
+          console.log("✅ Cancellation successful");
           await sendTextMessage(
             from,
             `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
           );
         } else {
+          console.log("❌ Cancellation failed");
           await sendTextMessage(from, "⚠️ حدث خطأ أثناء الإلغاء.");
         }
 
         delete cancelSessions[from];
+        console.log("✅ Cancel session cleared");
+        markMessageProcessed(from, messageId);
+        return res.sendStatus(200);
+      }
+
+      // PRIORITY 2: CANCEL DETECTION
+      if (isCancelRequest(text) && !tempBookings[from]) {
+        console.log("🚫 Cancel request detected!");
+
+        delete tempBookings[from];
+        cancelSessions[from] = true;
+
+        console.log("✅ Set cancelSessions[from] = true");
+
+        await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
