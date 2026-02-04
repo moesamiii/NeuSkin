@@ -1,28 +1,74 @@
+/* =========================================================
+   🏥 WhatsApp Clinic Bot – Production index.js
+   ---------------------------------------------------------
+   ✔ Supabase (Service Role)
+   ✔ WhatsApp Cloud API
+   ✔ AI (askAI / validateNameWithAI)
+   ✔ Voice messages
+   ✔ Booking + Cancel
+   ✔ booking_history
+   ✔ clinic_settings from DB
+   ✔ Rate limit & anti-duplicate
+   ✔ Vercel compatible (serverless)
+   ========================================================= */
+
 import express from "express";
 import axios from "axios";
+import { createClient } from "@supabase/supabase-js";
+
 import { askAI, validateNameWithAI } from "./aiHelper.js";
 import { handleAudioMessage } from "./webhookProcessor.js";
 
+/* =========================================================
+   🚀 APP INIT
+   ========================================================= */
 const app = express();
 app.use(express.json());
 
-/* ==============================
-   💾 IN-MEMORY STORAGE
-================================ */
-const inMemoryStorage = {
-  bookings: [],
-  settings: {
-    clinic_id: "default",
-    clinic_name: "عيادة نيو سكن",
-    booking_times: ["3 PM", "6 PM", "9 PM"],
-  },
+/* =========================================================
+   🔐 SUPABASE CLIENT (SERVICE ROLE)
+   ========================================================= */
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+/* =========================================================
+   ⚙️ GLOBAL STATE (ONLY TEMP SESSION DATA)
+   ========================================================= */
+const tempBookings = {}; // booking flow per WhatsApp user
+const cancelSessions = {}; // cancel flow per WhatsApp user
+
+/* =========================================================
+   🏥 CLINIC SETTINGS (FROM DB)
+   ========================================================= */
+let clinicSettings = {
+  clinic_name: "عيادة نيو سكن",
+  booking_times: ["3 PM", "6 PM", "9 PM"],
 };
 
-let clinicSettings = inMemoryStorage.settings;
+async function loadClinicSettings() {
+  const { data, error } = await supabase
+    .from("clinic_settings")
+    .select("*")
+    .eq("clinic_id", "default")
+    .single();
 
-/* ==============================
-   📸 DOCTORS
-================================ */
+  if (error) {
+    console.warn("⚠️ Using fallback clinic settings");
+    return;
+  }
+
+  clinicSettings = data;
+  console.log("✅ Clinic settings loaded from DB");
+}
+
+// load on cold start
+await loadClinicSettings();
+
+/* =========================================================
+   👨‍⚕️ DOCTORS DATA
+   ========================================================= */
 const DOCTOR_IMAGES = [
   "https://drive.google.com/uc?export=view&id=1ibiePCccQytufxR6MREHQsuQcdKEgnHu",
   "https://drive.google.com/uc?export=view&id=1oLw96zy3aWwJaOx6mwtZV173B7s5Rb64",
@@ -30,225 +76,180 @@ const DOCTOR_IMAGES = [
 ];
 
 const DOCTOR_INFO = [
-  { name: "د. طارق عورتاني", specialization: "اخصائي جلدية" },
-  { name: "د. ميساء صافي", specialization: "اخصائية جلدية" },
-  { name: "د. تانيا بيربن", specialization: "اخصائية جلدية" },
+  { name: "د. طارق عورتاني", specialization: "أخصائي جلدية" },
+  { name: "د. ميساء صافي", specialization: "أخصائية جلدية" },
+  { name: "د. تانيا بيربن", specialization: "أخصائية جلدية" },
 ];
 
-/* ==============================
-   🛡️ SPAM PROTECTION
-================================ */
+/* =========================================================
+   🛡️ ANTI-SPAM & RATE LIMIT
+   ========================================================= */
 const userMessageTimestamps = {};
 const userLastMessages = {};
 const processingMessages = {};
 
-const RATE_LIMIT_CONFIG = {
-  DUPLICATE_WINDOW_MS: 5000,
-  MAX_MESSAGES_PER_WINDOW: 10,
-  TIME_WINDOW_MS: 30000,
-  PROCESSING_TIMEOUT_MS: 10000,
+const RATE_LIMIT = {
+  DUPLICATE_MS: 5000,
+  MAX_MSG: 10,
+  WINDOW_MS: 30000,
+  PROCESS_TIMEOUT: 10000,
 };
 
-function isDuplicateMessage(userId, messageText) {
+function isDuplicateMessage(userId, text) {
   const now = Date.now();
   if (!userLastMessages[userId]) {
-    userLastMessages[userId] = { text: "", timestamp: 0 };
+    userLastMessages[userId] = { text: "", ts: 0 };
   }
-  const lastMsg = userLastMessages[userId];
-  const isDuplicate =
-    lastMsg.text === messageText &&
-    now - lastMsg.timestamp < RATE_LIMIT_CONFIG.DUPLICATE_WINDOW_MS;
-  userLastMessages[userId] = { text: messageText, timestamp: now };
-  return isDuplicate;
+  const last = userLastMessages[userId];
+  const dup = last.text === text && now - last.ts < RATE_LIMIT.DUPLICATE_MS;
+  userLastMessages[userId] = { text, ts: now };
+  return dup;
 }
 
 function checkRateLimit(userId) {
   const now = Date.now();
-  if (!userMessageTimestamps[userId]) {
-    userMessageTimestamps[userId] = [];
-  }
+  if (!userMessageTimestamps[userId]) userMessageTimestamps[userId] = [];
   userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(
-    (timestamp) => now - timestamp < RATE_LIMIT_CONFIG.TIME_WINDOW_MS,
+    (t) => now - t < RATE_LIMIT.WINDOW_MS,
   );
-  if (
-    userMessageTimestamps[userId].length >=
-    RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_WINDOW
-  ) {
-    console.log(`⚠️ Rate limit exceeded for ${userId}`);
-    return { allowed: false, rateLimited: true };
+  if (userMessageTimestamps[userId].length >= RATE_LIMIT.MAX_MSG) {
+    return false;
   }
   userMessageTimestamps[userId].push(now);
-  return { allowed: true, rateLimited: false };
+  return true;
 }
 
-function isMessageBeingProcessed(userId, messageId) {
+function isProcessing(userId, msgId) {
+  const key = `${userId}:${msgId}`;
   const now = Date.now();
-  for (const key in processingMessages) {
-    if (
-      now - processingMessages[key] >
-      RATE_LIMIT_CONFIG.PROCESSING_TIMEOUT_MS
-    ) {
-      delete processingMessages[key];
-    }
-  }
-  const processingKey = `${userId}:${messageId}`;
-  if (processingMessages[processingKey]) return true;
-  processingMessages[processingKey] = now;
+  if (processingMessages[key]) return true;
+  processingMessages[key] = now;
   return false;
 }
 
-function markMessageProcessed(userId, messageId) {
-  delete processingMessages[`${userId}:${messageId}`];
+function doneProcessing(userId, msgId) {
+  delete processingMessages[`${userId}:${msgId}`];
 }
 
-// Cleanup interval
-setInterval(() => {
-  const now = Date.now();
-  for (const userId in userMessageTimestamps) {
-    userMessageTimestamps[userId] = userMessageTimestamps[userId].filter(
-      (timestamp) => now - timestamp < RATE_LIMIT_CONFIG.TIME_WINDOW_MS,
-    );
-    if (userMessageTimestamps[userId].length === 0) {
-      delete userMessageTimestamps[userId];
-    }
-  }
-  for (const userId in userLastMessages) {
-    if (
-      now - userLastMessages[userId].timestamp >
-      RATE_LIMIT_CONFIG.DUPLICATE_WINDOW_MS * 2
-    ) {
-      delete userLastMessages[userId];
-    }
-  }
-  for (const key in processingMessages) {
-    if (
-      now - processingMessages[key] >
-      RATE_LIMIT_CONFIG.PROCESSING_TIMEOUT_MS
-    ) {
-      delete processingMessages[key];
-    }
-  }
-}, 120000);
-
-/* ==============================
+/* =========================================================
    💾 DATABASE FUNCTIONS
-================================ */
-async function insertBooking(booking) {
-  try {
-    const id = Date.now().toString();
-    const newBooking = {
-      id,
-      name: booking.name,
-      phone: booking.phone,
-      service: booking.service,
-      appointment: booking.appointment,
-      status: "new",
-      created_at: new Date().toISOString(),
-    };
-    inMemoryStorage.bookings.push(newBooking);
-    console.log("✅ Booking saved:", newBooking);
-    console.log(`📊 Total bookings: ${inMemoryStorage.bookings.length}`);
-    return true;
-  } catch (err) {
-    console.error("❌ Insert error:", err.message);
-    return false;
-  }
-}
+   ========================================================= */
 
-async function findBookingByPhone(phone) {
-  try {
-    const matchingBookings = inMemoryStorage.bookings
-      .filter((b) => b.phone === phone && b.status === "new")
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    if (matchingBookings.length === 0) {
-      console.log("❌ No booking found for phone:", phone);
-      return null;
-    }
-    console.log("✅ Booking found:", matchingBookings[0]);
-    return matchingBookings[0];
-  } catch (err) {
-    console.error("❌ Find booking error:", err.message);
+// INSERT BOOKING
+async function insertBooking(booking) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert([
+      {
+        name: booking.name,
+        phone: booking.phone,
+        service: booking.service,
+        appointment: booking.appointment,
+        status: "new",
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("❌ Insert booking error:", error);
     return null;
   }
+
+  // history
+  await supabase.from("booking_history").insert([
+    {
+      booking_id: data.id,
+      action: "created",
+      note: "Booking created via WhatsApp",
+    },
+  ]);
+
+  return data;
 }
 
-async function cancelBooking(id) {
-  try {
-    const booking = inMemoryStorage.bookings.find((b) => b.id === id);
-    if (!booking) {
-      console.log("❌ Booking not found with id:", id);
-      return false;
-    }
-    booking.status = "canceled";
-    booking.canceled_at = new Date().toISOString();
-    console.log("✅ Booking canceled:", booking);
-    return true;
-  } catch (err) {
-    console.error("❌ Cancel error:", err.message);
-    return false;
-  }
+// FIND BOOKING
+async function findBookingByPhone(phone) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("phone", phone)
+    .eq("status", "new")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) return null;
+  return data;
 }
 
-/* ==============================
-   📞 WHATSAPP
-================================ */
+// CANCEL BOOKING
+async function cancelBooking(booking) {
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      status: "canceled",
+      canceled_at: new Date().toISOString(),
+    })
+    .eq("id", booking.id);
+
+  if (error) return false;
+
+  await supabase.from("booking_history").insert([
+    {
+      booking_id: booking.id,
+      action: "canceled",
+      note: "Booking canceled via WhatsApp",
+    },
+  ]);
+
+  return true;
+}
+
+/* =========================================================
+   📞 WHATSAPP API
+   ========================================================= */
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
-async function sendTextMessage(to, text) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-      { messaging_product: "whatsapp", to, text: { body: text } },
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
-    );
-  } catch (err) {
-    console.error("❌ Send message error:", err.message);
-  }
+async function sendText(to, body) {
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    { messaging_product: "whatsapp", to, text: { body } },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
 }
 
-async function sendImageMessage(to, imageUrl, caption) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "image",
-        image: { link: imageUrl, caption },
-      },
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
-    );
-  } catch (err) {
-    console.error("❌ Image send error:", err.message);
-  }
+async function sendImage(to, link, caption) {
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "image",
+      image: { link, caption },
+    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
+  );
 }
 
-async function sendDoctorInfo(to) {
-  await sendTextMessage(to, "👨‍⚕️ فريق الأطباء لدينا:");
+async function sendDoctors(to) {
+  await sendText(to, "👨‍⚕️ فريق الأطباء لدينا:");
   for (let i = 0; i < DOCTOR_INFO.length; i++) {
-    await sendImageMessage(
+    await sendImage(
       to,
       DOCTOR_IMAGES[i],
       `${DOCTOR_INFO[i].name}\n${DOCTOR_INFO[i].specialization}`,
     );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 
-async function sendAppointmentOptions(to) {
-  const bookingTimes = clinicSettings?.booking_times || [
-    "3 PM",
-    "6 PM",
-    "9 PM",
-  ];
-  const buttons = bookingTimes.slice(0, 3).map((t) => ({
+async function sendSlots(to) {
+  const buttons = clinicSettings.booking_times.map((t) => ({
     type: "reply",
-    reply: {
-      id: `slot_${t.toLowerCase().replace(/\s/g, "")}`,
-      title: t,
-    },
+    reply: { id: `slot_${t}`, title: t },
   }));
+
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
     {
@@ -257,7 +258,7 @@ async function sendAppointmentOptions(to) {
       type: "interactive",
       interactive: {
         type: "button",
-        body: { text: "📅 اختر الموعد المناسب:" },
+        body: { text: "📅 اختر الموعد:" },
         action: { buttons },
       },
     },
@@ -265,7 +266,7 @@ async function sendAppointmentOptions(to) {
   );
 }
 
-async function sendServiceList(to) {
+async function sendServices(to) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
     {
@@ -274,7 +275,7 @@ async function sendServiceList(to) {
       type: "interactive",
       interactive: {
         type: "list",
-        body: { text: "اختر نوع الخدمة:" },
+        body: { text: "اختر الخدمة:" },
         action: {
           button: "الخدمات",
           sections: [
@@ -294,289 +295,163 @@ async function sendServiceList(to) {
   );
 }
 
-/* ==============================
-   🧠 STATE & INTENT DETECTION
-================================ */
-const tempBookings = {};
-const cancelSessions = {};
+/* =========================================================
+   🧠 INTENT HELPERS
+   ========================================================= */
+const isBooking = (t) => /(حجز|موعد|book)/i.test(t);
+const isCancel = (t) => /(الغاء|إلغاء|cancel)/i.test(t);
+const isDoctor = (t) => /(طبيب|دكتور|doctor)/i.test(t);
+const isReset = (t) => /(reset|ابدأ|عيد)/i.test(t);
 
-function isBookingRequest(text) {
-  return /(حجز|موعد|احجز|book|appointment|reserve)/i.test(text);
-}
-
-function isCancelRequest(text) {
-  return /(الغاء|إلغاء|الغي|كنسل|cancel)/i.test(text);
-}
-
-function isDoctorRequest(text) {
-  return /(طبيب|اطباء|أطباء|الاطباء|الأطباء|دكتور|دكاترة|doctor|doctors)/i.test(
-    text,
-  );
-}
-
-function isResetRequest(text) {
-  return /(reset|start|عيد من اول|ابدا من جديد|ابدأ من جديد|من البداية|بداية جديدة|restart|new chat|ابدا|ابدأ|عيد)/i.test(
-    text,
-  );
-}
-
-/* ==============================
+/* =========================================================
    📩 WEBHOOK
-================================ */
+   ========================================================= */
 app.post("/webhook", async (req, res) => {
-  const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message) return res.sendStatus(200);
+  const msg = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (!msg) return res.sendStatus(200);
 
-  const from = message.from;
-  const messageId = message.id;
+  const from = msg.from;
+  const msgId = msg.id;
 
-  // Check if already processing
-  if (isMessageBeingProcessed(from, messageId)) {
-    console.log(`🔄 Message ${messageId} already processing - ignoring`);
-    return res.sendStatus(200);
-  }
+  if (isProcessing(from, msgId)) return res.sendStatus(200);
 
   try {
-    // Duplicate detection
-    if (message.type === "text") {
-      const text = message.text.body;
-      if (isDuplicateMessage(from, text)) {
-        console.log(`🔁 Duplicate message from ${from} - ignoring`);
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
-      }
-    }
+    if (!checkRateLimit(from)) return res.sendStatus(200);
 
-    // Rate limit check
-    const rateLimitCheck = checkRateLimit(from);
-    if (!rateLimitCheck.allowed) {
-      console.log(`⚠️ Rate limited user ${from}`);
-      markMessageProcessed(from, messageId);
+    if (msg.type === "audio") {
+      await handleAudioMessage(
+        msg,
+        from,
+        askAI,
+        sendText,
+        sendSlots,
+        sendServices,
+        sendDoctors,
+        tempBookings,
+        cancelSessions,
+      );
       return res.sendStatus(200);
     }
 
-    // Voice message handling
-    if (message.type === "audio") {
-      console.log("🎙️ Voice message received from", from);
-      try {
-        await handleAudioMessage(
-          message,
-          from,
-          askAI,
-          sendTextMessage,
-          sendAppointmentOptions,
-          sendServiceList,
-          sendDoctorInfo,
-          tempBookings,
-          cancelSessions,
-        );
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
-      } catch (err) {
-        console.error("❌ Voice handling error:", err.message);
-        await sendTextMessage(
-          from,
-          "⚠️ عذراً، حدث خطأ في معالجة الرسالة الصوتية.",
-        );
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
-      }
-    }
-
-    // Interactive buttons
-    if (message.type === "interactive") {
+    if (msg.type === "interactive") {
       const id =
-        message.interactive?.button_reply?.id ||
-        message.interactive?.list_reply?.id;
+        msg.interactive?.button_reply?.id || msg.interactive?.list_reply?.id;
 
       if (id.startsWith("slot_")) {
-        tempBookings[from] = {
-          appointment: id.replace("slot_", "").toUpperCase(),
-        };
-        await sendTextMessage(from, "👍 أرسل اسمك:");
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
+        tempBookings[from] = { appointment: id.replace("slot_", "") };
+        await sendText(from, "👍 أرسل اسمك:");
       }
 
       if (id.startsWith("service_")) {
-        const booking = tempBookings[from];
-        booking.service = id.replace("service_", "");
-        await insertBooking(booking);
-        await sendTextMessage(
+        tempBookings[from].service = id.replace("service_", "");
+        const saved = await insertBooking(tempBookings[from]);
+        await sendText(
           from,
-          `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+          saved ? "✅ تم تأكيد الحجز" : "❌ حدث خطأ أثناء الحجز",
         );
         delete tempBookings[from];
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
       }
+      return res.sendStatus(200);
     }
 
-    // Text messages
-    if (message.type === "text") {
-      const text = message.text.body;
-      console.log("📩 Message from:", from, "Text:", text);
+    if (msg.type === "text") {
+      const text = msg.text.body;
 
-      // PRIORITY 0: Reset/Start
-      if (isResetRequest(text)) {
-        console.log("🔄 Reset request detected");
+      if (isDuplicateMessage(from, text)) return res.sendStatus(200);
+
+      if (isReset(text)) {
         delete tempBookings[from];
         delete cancelSessions[from];
-        const lang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
-        const clinicName =
-          clinicSettings?.clinic_name ||
-          (lang === "ar" ? "عيادة ابتسامة" : "Ibtisama Clinic");
-        const greeting =
-          lang === "ar"
-            ? `👋 مرحباً بك في ${clinicName}!\n\nكيف يمكنني مساعدتك اليوم؟`
-            : `👋 Hello! Welcome to ${clinicName}!\n\nHow can I help you today?`;
-        await sendTextMessage(from, greeting);
-        markMessageProcessed(from, messageId);
+        await sendText(from, `👋 مرحباً بك في ${clinicSettings.clinic_name}`);
         return res.sendStatus(200);
       }
 
-      // PRIORITY 1: Cancel detection
-      if (isCancelRequest(text) && !tempBookings[from]) {
-        console.log("🚫 Cancel request detected");
+      if (isCancel(text)) {
         cancelSessions[from] = true;
-        if (tempBookings[from]) delete tempBookings[from];
-        await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
-        markMessageProcessed(from, messageId);
+        await sendText(from, "📱 أرسل رقم الجوال:");
         return res.sendStatus(200);
       }
 
-      // PRIORITY 2: Cancel flow - waiting for phone
       if (cancelSessions[from]) {
         const phone = text.replace(/\D/g, "");
-        if (phone.length < 8) {
-          await sendTextMessage(from, "⚠️ رقم الجوال غير صحيح. حاول مجددًا:");
-          markMessageProcessed(from, messageId);
-          return res.sendStatus(200);
-        }
         const booking = await findBookingByPhone(phone);
         if (!booking) {
-          await sendTextMessage(from, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
-          delete cancelSessions[from];
-          markMessageProcessed(from, messageId);
-          return res.sendStatus(200);
-        }
-        const success = await cancelBooking(booking.id);
-        if (success) {
-          await sendTextMessage(
-            from,
-            `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-          );
+          await sendText(from, "❌ لا يوجد حجز.");
         } else {
-          await sendTextMessage(from, "⚠️ حدث خطأ أثناء الإلغاء.");
+          await cancelBooking(booking);
+          await sendText(from, "🟣 تم إلغاء الحجز.");
         }
         delete cancelSessions[from];
-        markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
-      // PRIORITY 3: Doctor request
-      if (!tempBookings[from] && isDoctorRequest(text)) {
-        await sendDoctorInfo(from);
-        markMessageProcessed(from, messageId);
+      if (isDoctor(text)) {
+        await sendDoctors(from);
         return res.sendStatus(200);
       }
 
-      // PRIORITY 4: Start booking
-      if (!tempBookings[from] && isBookingRequest(text)) {
-        console.log("📅 Starting booking for:", from);
+      if (isBooking(text)) {
         tempBookings[from] = {};
-        await sendAppointmentOptions(from);
-        markMessageProcessed(from, messageId);
+        await sendSlots(from);
         return res.sendStatus(200);
       }
 
-      // PRIORITY 5: Collect name
       if (tempBookings[from] && !tempBookings[from].name) {
-        const isValidName = await validateNameWithAI(text);
-        if (!isValidName) {
-          await sendTextMessage(from, "⚠️ الرجاء إدخال اسم صحيح:");
-          markMessageProcessed(from, messageId);
+        if (!(await validateNameWithAI(text))) {
+          await sendText(from, "⚠️ اسم غير صحيح");
           return res.sendStatus(200);
         }
         tempBookings[from].name = text;
-        await sendTextMessage(from, "📱 أرسل رقم الجوال:");
-        markMessageProcessed(from, messageId);
+        await sendText(from, "📱 أرسل رقم الجوال:");
         return res.sendStatus(200);
       }
 
-      // PRIORITY 6: Collect phone
       if (tempBookings[from] && !tempBookings[from].phone) {
         tempBookings[from].phone = text.replace(/\D/g, "");
-        await sendServiceList(from);
-        markMessageProcessed(from, messageId);
+        await sendServices(from);
         return res.sendStatus(200);
       }
 
-      // PRIORITY 7: General question - AI
-      if (!tempBookings[from]) {
-        const reply = await askAI(text);
-        await sendTextMessage(from, reply);
-        markMessageProcessed(from, messageId);
-        return res.sendStatus(200);
-      }
+      const reply = await askAI(text);
+      await sendText(from, reply);
     }
-
-    markMessageProcessed(from, messageId);
-  } catch (error) {
-    console.error("❌ Error processing message:", error);
-    markMessageProcessed(from, messageId);
+  } catch (e) {
+    console.error("❌ Webhook error:", e);
+  } finally {
+    doneProcessing(from, msgId);
   }
 
   res.sendStatus(200);
 });
 
-/* ==============================
-   🔐 WEBHOOK VERIFICATION
-================================ */
+/* =========================================================
+   🔐 WEBHOOK VERIFY
+   ========================================================= */
 app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  console.log("🔍 Webhook verification:");
-  console.log("Mode:", mode);
-  console.log("Token:", token);
-  console.log("Expected:", process.env.VERIFY_TOKEN);
-
-  if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
-    console.log("✅ Verification successful");
-    return res.status(200).send(challenge);
+  if (
+    req.query["hub.mode"] === "subscribe" &&
+    req.query["hub.verify_token"] === process.env.VERIFY_TOKEN
+  ) {
+    return res.send(req.query["hub.challenge"]);
   }
-  console.log("❌ Verification failed");
   res.sendStatus(403);
 });
 
-/* ==============================
-   🏥 HEALTH & INFO ENDPOINTS
-================================ */
+/* =========================================================
+   🩺 HEALTH
+   ========================================================= */
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
-    message: "WhatsApp Bot is running",
     clinic: clinicSettings.clinic_name,
-    bookings_count: inMemoryStorage.bookings.length,
     timestamp: new Date().toISOString(),
   });
 });
 
-app.get("/bookings", (req, res) => {
-  res.json({
-    total: inMemoryStorage.bookings.length,
-    bookings: inMemoryStorage.bookings,
-  });
-});
-
-/* ==============================
-   🚀 START SERVER
-================================ */
+/* =========================================================
+   🚀 START
+   ========================================================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
-  console.log("🏥 Clinic:", clinicSettings.clinic_name);
-  console.log("💾 Using in-memory storage (data will be lost on restart)");
+  console.log("🚀 WhatsApp Clinic Bot running on", PORT);
 });
