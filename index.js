@@ -1,16 +1,11 @@
 /* =========================================================
-   🏥 WhatsApp Clinic Bot – Complete Production Version
+   🏥 WhatsApp Clinic Bot – REFACTORED VERSION
    ---------------------------------------------------------
-   ✔ Supabase (Service Role) with booking_history
-   ✔ WhatsApp Cloud API
-   ✔ AI (askAI / validateNameWithAI)
-   ✔ Voice messages
-   ✔ Booking + Cancel with history tracking
-   ✔ clinic_settings from DB
-   ✔ Rate limit & anti-duplicate & spam protection
-   ✔ Doctor info with images
-   ✔ Reset/Start functionality
-   ✔ Production ready
+   ✔ Better data validation (no empty fields)
+   ✔ Phone number normalization
+   ✔ Improved error handling
+   ✔ Better user feedback
+   ✔ Code organization improvements
    ========================================================= */
 
 import express from "express";
@@ -216,29 +211,94 @@ setInterval(() => {
 }, 120000);
 
 /* =========================================================
+   🔧 VALIDATION HELPERS
+   ========================================================= */
+
+/**
+ * Normalize and validate phone number
+ * Accepts: 0790123456, +962790123456, 962790123456
+ * Returns: normalized number or null if invalid
+ */
+function normalizePhoneNumber(phone) {
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, "");
+
+  // Remove leading 962 or +962
+  if (cleaned.startsWith("962")) {
+    cleaned = "0" + cleaned.substring(3);
+  }
+
+  // Must be 10 digits starting with 07
+  if (cleaned.length === 10 && cleaned.startsWith("07")) {
+    return cleaned;
+  }
+
+  return null;
+}
+
+/**
+ * Validate booking data before saving
+ */
+function validateBookingData(booking) {
+  const errors = [];
+
+  if (!booking.name || booking.name.trim().length < 2) {
+    errors.push("الاسم غير صحيح");
+  }
+
+  if (!booking.phone || booking.phone.length < 10) {
+    errors.push("رقم الجوال غير صحيح");
+  }
+
+  if (!booking.service || booking.service.trim().length === 0) {
+    errors.push("يجب اختيار الخدمة");
+  }
+
+  if (!booking.appointment || booking.appointment.trim().length === 0) {
+    errors.push("يجب اختيار الموعد");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+/* =========================================================
    💾 SUPABASE DATABASE FUNCTIONS
    ========================================================= */
 
-// INSERT BOOKING
+/**
+ * INSERT BOOKING - with validation
+ */
 async function insertBooking(booking) {
   try {
+    // Validate data first
+    const validation = validateBookingData(booking);
+    if (!validation.isValid) {
+      console.error("❌ Validation errors:", validation.errors);
+      return { success: false, errors: validation.errors };
+    }
+
+    // Prepare data with current timestamp
+    const bookingData = {
+      name: booking.name.trim(),
+      phone: booking.phone.trim(),
+      service: booking.service.trim(),
+      appointment: booking.appointment.trim(),
+      time: new Date().toISOString(),
+      status: "new",
+    };
+
     const { data, error } = await supabase
       .from("bookings")
-      .insert([
-        {
-          name: booking.name,
-          phone: booking.phone,
-          service: booking.service,
-          appointment: booking.appointment,
-          status: "new",
-        },
-      ])
+      .insert([bookingData])
       .select()
       .single();
 
     if (error) {
       console.error("❌ Insert booking error:", error.message);
-      return null;
+      return { success: false, error: error.message };
     }
 
     console.log("✅ Booking saved to Supabase:", data);
@@ -252,34 +312,33 @@ async function insertBooking(booking) {
       },
     ]);
 
-    return data;
+    return { success: true, data };
   } catch (err) {
     console.error("❌ Insert booking exception:", err.message);
-    return null;
+    return { success: false, error: err.message };
   }
 }
 
-// FIND BOOKING BY PHONE
-// FIND BOOKING BY PHONE
+/**
+ * FIND BOOKING BY PHONE - with normalized search
+ */
 async function findBookingByPhone(phone) {
   try {
-    console.log("🔍 Searching for phone:", phone);
+    const normalizedPhone = normalizePhoneNumber(phone);
 
-    // First, let's see ALL bookings with this phone (ignore status)
-    const { data: allData, error: allError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", phone);
+    if (!normalizedPhone) {
+      console.log("❌ Invalid phone format:", phone);
+      return null;
+    }
 
-    console.log("📊 ALL bookings for this phone:", allData);
+    console.log("🔍 Searching for normalized phone:", normalizedPhone);
 
-    // Now search for "new" status only
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .eq("phone", phone)
+      .eq("phone", normalizedPhone)
       .eq("status", "new")
-      .order("created_at", { ascending: false })
+      .order("time", { ascending: false })
       .limit(1);
 
     if (error) {
@@ -288,10 +347,7 @@ async function findBookingByPhone(phone) {
     }
 
     if (!data || data.length === 0) {
-      console.log("❌ No NEW booking found for phone:", phone);
-      console.log(
-        "💡 Try checking if status is different or phone format doesn't match",
-      );
+      console.log("❌ No NEW booking found for phone:", normalizedPhone);
       return null;
     }
 
@@ -303,15 +359,14 @@ async function findBookingByPhone(phone) {
   }
 }
 
-// CANCEL BOOKING
-// CANCEL BOOKING
+/**
+ * CANCEL BOOKING - simplified
+ */
 async function cancelBooking(booking) {
   try {
     const { error } = await supabase
       .from("bookings")
-      .update({
-        status: "canceled",
-      })
+      .update({ status: "canceled" })
       .eq("id", booking.id);
 
     if (error) {
@@ -321,7 +376,7 @@ async function cancelBooking(booking) {
 
     console.log("✅ Booking canceled in Supabase");
 
-    // Insert into booking_history (this tracks when it was canceled)
+    // Insert into booking_history
     await supabase.from("booking_history").insert([
       {
         booking_id: booking.id,
@@ -461,6 +516,7 @@ async function sendServiceList(to) {
     },
   );
 }
+
 /* =========================================================
    🧠 INTENT DETECTION HELPERS
    ========================================================= */
@@ -560,7 +616,7 @@ app.post("/webhook", async (req, res) => {
         tempBookings[from] = {
           appointment: id.replace("slot_", "").toUpperCase(),
         };
-        await sendTextMessage(from, "👍 أرسل اسمك:");
+        await sendTextMessage(from, "👍 أرسل اسمك الكامل:");
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
@@ -569,30 +625,38 @@ app.post("/webhook", async (req, res) => {
       if (id.startsWith("service_")) {
         const booking = tempBookings[from];
 
-        if (!booking) {
+        if (!booking || !booking.name || !booking.phone) {
           await sendTextMessage(
             from,
             "⚠️ حدث خطأ. الرجاء البدء من جديد بكتابة 'حجز'",
           );
+          delete tempBookings[from];
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
 
-        // Use SERVICE_MAP to get the proper service name
+        // Set service from SERVICE_MAP
         booking.service = SERVICE_MAP[id] || id.replace("service_", "");
 
-        const saved = await insertBooking(booking);
+        // Save booking with validation
+        const result = await insertBooking(booking);
 
-        if (saved) {
+        if (result.success) {
           await sendTextMessage(
             from,
-            `✅ تم تأكيد الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+            `✅ تم تأكيد الحجز بنجاح!\n\n` +
+              `👤 الاسم: ${booking.name}\n` +
+              `📱 الجوال: ${booking.phone}\n` +
+              `💊 الخدمة: ${booking.service}\n` +
+              `📅 الموعد: ${booking.appointment}\n\n` +
+              `سيتم التواصل معك قريباً لتأكيد الموعد 🌟`,
           );
         } else {
-          await sendTextMessage(
-            from,
-            "⚠️ حدث خطأ في حفظ الحجز. يرجى المحاولة مرة أخرى.",
-          );
+          const errorMsg = result.errors
+            ? `⚠️ خطأ في البيانات:\n${result.errors.join("\n")}`
+            : "⚠️ حدث خطأ في حفظ الحجز. يرجى المحاولة مرة أخرى.";
+
+          await sendTextMessage(from, errorMsg);
         }
 
         delete tempBookings[from];
@@ -603,7 +667,7 @@ app.post("/webhook", async (req, res) => {
 
     // ============ TEXT MESSAGES ============
     if (message.type === "text") {
-      const text = message.text.body;
+      const text = message.text.body.trim();
       console.log("📩 Message from:", from, "Text:", text);
 
       // PRIORITY 0: RESET/START (Highest Priority)
@@ -619,7 +683,7 @@ app.post("/webhook", async (req, res) => {
 
         const greeting =
           lang === "ar"
-            ? `👋 مرحباً بك في ${clinicName}!\n\nكيف يمكنني مساعدتك اليوم؟`
+            ? `👋 مرحباً بك في ${clinicName}!\n\nكيف يمكنني مساعدتك اليوم?`
             : `👋 Hello! Welcome to ${clinicName}!\n\nHow can I help you today?`;
 
         await sendTextMessage(from, greeting);
@@ -628,34 +692,39 @@ app.post("/webhook", async (req, res) => {
       }
 
       // PRIORITY 1: CANCEL DETECTION
-      // PRIORITY 1: CANCEL DETECTION
       if (isCancelRequest(text) && !cancelSessions[from]) {
-        // ✅ CORRECT
         console.log("🚫 Cancel request detected");
         cancelSessions[from] = true;
-
-        // Clear any active booking
         delete tempBookings[from];
 
-        await sendTextMessage(from, "📌 أرسل رقم الجوال المستخدم في الحجز:");
+        await sendTextMessage(
+          from,
+          "📌 أرسل رقم الجوال المستخدم في الحجز:\n(مثال: 0790123456)",
+        );
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
       // PRIORITY 2: CANCEL FLOW - Waiting for phone
       if (cancelSessions[from]) {
-        const phone = text.replace(/\D/g, "");
+        const normalizedPhone = normalizePhoneNumber(text);
 
-        if (phone.length < 8) {
-          await sendTextMessage(from, "⚠️ رقم الجوال غير صحيح. حاول مجددًا:");
+        if (!normalizedPhone) {
+          await sendTextMessage(
+            from,
+            "⚠️ رقم الجوال غير صحيح. الرجاء إدخال رقم أردني صحيح:\n(مثال: 0790123456)",
+          );
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
 
-        const booking = await findBookingByPhone(phone);
+        const booking = await findBookingByPhone(normalizedPhone);
 
         if (!booking) {
-          await sendTextMessage(from, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
+          await sendTextMessage(
+            from,
+            "❌ لا يوجد حجز نشط مرتبط بهذا الرقم.\n\nتأكد من الرقم أو تواصل معنا مباشرة.",
+          );
           delete cancelSessions[from];
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
@@ -666,10 +735,14 @@ app.post("/webhook", async (req, res) => {
         if (success) {
           await sendTextMessage(
             from,
-            `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+            `✅ تم إلغاء الحجز بنجاح:\n\n` +
+              `👤 ${booking.name}\n` +
+              `💊 ${booking.service}\n` +
+              `📅 ${booking.appointment}\n\n` +
+              `نأسف لعدم قدرتنا على خدمتك هذه المرة 💜`,
           );
         } else {
-          await sendTextMessage(from, "⚠️ حدث خطأ أثناء الإلغاء.");
+          await sendTextMessage(from, "⚠️ حدث خطأ أثناء الإلغاء. حاول لاحقاً.");
         }
 
         delete cancelSessions[from];
@@ -697,21 +770,32 @@ app.post("/webhook", async (req, res) => {
       if (tempBookings[from] && !tempBookings[from].name) {
         const isValidName = await validateNameWithAI(text);
 
-        if (!isValidName) {
-          await sendTextMessage(from, "⚠️ الرجاء إدخال اسم صحيح:");
+        if (!isValidName || text.length < 2) {
+          await sendTextMessage(from, "⚠️ الرجاء إدخال اسمك الكامل بشكل صحيح:");
           markMessageProcessed(from, messageId);
           return res.sendStatus(200);
         }
 
         tempBookings[from].name = text;
-        await sendTextMessage(from, "📱 أرسل رقم الجوال:");
+        await sendTextMessage(from, "📱 أرسل رقم الجوال:\n(مثال: 0790123456)");
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
       }
 
       // PRIORITY 6: COLLECT PHONE
       if (tempBookings[from] && !tempBookings[from].phone) {
-        tempBookings[from].phone = text.replace(/\D/g, "");
+        const normalizedPhone = normalizePhoneNumber(text);
+
+        if (!normalizedPhone) {
+          await sendTextMessage(
+            from,
+            "⚠️ رقم الجوال غير صحيح. الرجاء إدخال رقم أردني صحيح:\n(مثال: 0790123456)",
+          );
+          markMessageProcessed(from, messageId);
+          return res.sendStatus(200);
+        }
+
+        tempBookings[from].phone = normalizedPhone;
         await sendServiceList(from);
         markMessageProcessed(from, messageId);
         return res.sendStatus(200);
@@ -763,8 +847,9 @@ app.get("/webhook", (req, res) => {
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
-    message: "WhatsApp Bot is running - Connected to Supabase",
+    message: "WhatsApp Bot is running - Refactored Version",
     clinic: clinicSettings.clinic_name,
+    version: "2.0 - Improved",
     timestamp: new Date().toISOString(),
   });
 });
@@ -774,7 +859,7 @@ app.get("/bookings", async (req, res) => {
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("time", { ascending: false });
 
     if (error) {
       return res.status(500).json({ error: error.message });
@@ -797,7 +882,8 @@ app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
   console.log("🏥 Clinic:", clinicSettings.clinic_name);
   console.log("💾 Connected to Supabase Database");
+  console.log("✨ Version: 2.0 - Refactored & Improved");
   console.log(
-    "📊 Features: Bookings, Cancellations, History, Voice, AI, Anti-spam",
+    "📊 Features: Better validation, No empty fields, Phone normalization",
   );
 });
