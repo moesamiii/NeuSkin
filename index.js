@@ -440,15 +440,9 @@ async function sendServiceList(to) {
         },
       },
     },
-    {
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
   );
 }
-
 /* =========================================================
    🧠 INTENT DETECTION HELPERS
    ========================================================= */
@@ -556,8 +550,7 @@ app.post("/webhook", async (req, res) => {
       // Service selected - complete booking
       if (id.startsWith("service_")) {
         const booking = tempBookings[from];
-
-        booking.service = SERVICE_MAP[id] || id.replace("service_", "");
+        booking.service = id.replace("service_", "");
 
         const saved = await insertBooking(booking);
 
