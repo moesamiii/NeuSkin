@@ -263,22 +263,40 @@ async function insertBooking(booking) {
 // FIND BOOKING BY PHONE
 async function findBookingByPhone(phone) {
   try {
+    console.log("🔍 Searching for phone:", phone);
+
+    // First, let's see ALL bookings with this phone (ignore status)
+    const { data: allData, error: allError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", phone);
+
+    console.log("📊 ALL bookings for this phone:", allData);
+
+    // Now search for "new" status only
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", phone)
       .eq("status", "new")
       .order("created_at", { ascending: false })
-      .limit(1); // ✅ Removed .single()
+      .limit(1);
 
-    if (error || !data || data.length === 0) {
-      // ✅ Check for empty array
-      console.log("❌ No booking found for phone:", phone);
+    if (error) {
+      console.error("❌ Supabase error:", error.message);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      console.log("❌ No NEW booking found for phone:", phone);
+      console.log(
+        "💡 Try checking if status is different or phone format doesn't match",
+      );
       return null;
     }
 
     console.log("✅ Booking found:", data[0]);
-    return data[0]; // ✅ Return first element
+    return data[0];
   } catch (err) {
     console.error("❌ Find booking error:", err.message);
     return null;
