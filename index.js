@@ -304,13 +304,13 @@ async function findBookingByPhone(phone) {
 }
 
 // CANCEL BOOKING
+// CANCEL BOOKING
 async function cancelBooking(booking) {
   try {
     const { error } = await supabase
       .from("bookings")
       .update({
         status: "canceled",
-        canceled_at: new Date().toISOString(),
       })
       .eq("id", booking.id);
 
@@ -321,7 +321,7 @@ async function cancelBooking(booking) {
 
     console.log("✅ Booking canceled in Supabase");
 
-    // Insert into booking_history
+    // Insert into booking_history (this tracks when it was canceled)
     await supabase.from("booking_history").insert([
       {
         booking_id: booking.id,
