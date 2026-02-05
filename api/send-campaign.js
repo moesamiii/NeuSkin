@@ -11,53 +11,28 @@ export default async function handler(req, res) {
     if (!phone || !appointment) {
       return res.status(400).json({
         success: false,
-        error: "Phone and message are required",
+        error: "phone and appointment are required",
       });
     }
 
-    // 🔢 Normalize phone (WhatsApp needs digits only, no +)
     let formattedPhone = phone.replace(/\D/g, "");
-    if (formattedPhone.startsWith("00")) {
-      formattedPhone = formattedPhone.substring(2);
-    }
     if (formattedPhone.startsWith("0")) {
-      formattedPhone = "962" + formattedPhone.substring(1);
-    }
-
-    const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-
-    if (!PHONE_NUMBER_ID || !WHATSAPP_TOKEN) {
-      return res.status(500).json({
-        success: false,
-        error: "WhatsApp credentials missing",
-      });
-    }
-
-    const payload = {
-      messaging_product: "whatsapp",
-      to: formattedPhone,
-    };
-
-    if (image && image.trim()) {
-      payload.type = "image";
-      payload.image = {
-        link: image,
-        caption: appointment,
-      };
-    } else {
-      payload.type = "text";
-      payload.text = {
-        body: appointment,
-      };
+      formattedPhone = "962" + formattedPhone.slice(1);
     }
 
     const response = await axios.post(
-      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
-      payload,
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: formattedPhone,
+        type: image ? "image" : "text",
+        ...(image
+          ? { image: { link: image, caption: appointment } }
+          : { text: { body: appointment } }),
+      },
       {
         headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
           "Content-Type": "application/json",
         },
       },
@@ -65,21 +40,12 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      messageId: response.data.messages?.[0]?.id || null,
-      phone: formattedPhone,
+      id: response.data.messages?.[0]?.id,
     });
-  } catch (error) {
-    if (error.response) {
-      return res.status(error.response.status).json({
-        success: false,
-        error: error.response.data?.error?.message || "WhatsApp API error",
-        details: error.response.data,
-      });
-    }
-
+  } catch (err) {
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: err.response?.data || err.message,
     });
   }
 }
