@@ -136,7 +136,7 @@
         font-size: 12px;
         max-height: 300px;
         overflow-y: auto;
-        display: none;
+        display: block;
       }
 
       body.dark .debug-info {
@@ -534,6 +534,28 @@
       .toast.warning {
         background: #f59e0b;
       }
+
+      .connection-status {
+        background: #fef3c7;
+        border: 2px solid #f59e0b;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+      }
+
+      .connection-status.connected {
+        background: #d1fae5;
+        border-color: #10b981;
+      }
+
+      .connection-status.error {
+        background: #fee2e2;
+        border-color: #ef4444;
+      }
     </style>
   </head>
 
@@ -613,6 +635,12 @@
         </header>
 
         <section class="settings-container">
+          <!-- Connection Status -->
+          <div class="connection-status" id="connectionStatus">
+            <i class="fas fa-circle-notch fa-spin"></i>
+            <span>جاري فحص الاتصال بالخادم...</span>
+          </div>
+
           <div class="setting-card">
             <label>عنوان العرض</label>
             <input
@@ -655,7 +683,7 @@
                 <input
                   type="text"
                   id="phoneInput"
-                  placeholder="أدخل رقم الهاتف (مثال: 962781234567)"
+                  placeholder="أدخل رقم الهاتف (مثال: 962781234567 أو +962781234567)"
                   onkeypress="if (event.key === 'Enter') addPhoneNumber();"
                 />
                 <input
@@ -738,10 +766,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ✅ Backend API URL - CHANGE THIS TO YOUR INDEX.JS SERVER URL
-      const BACKEND_URL = window.location.origin; // Uses same origin, or set to your server URL like "https://your-server.com"
+      // ✅ Backend API URL
+      const BACKEND_URL = window.location.origin;
 
-      // 🔑 Supabase configuration (for auth only)
+      // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -753,6 +781,85 @@
       let clinicSettings = { clinic_name: "عيادة ابتسامة" };
       let recipientPhones = [];
       let allBookings = [];
+
+      // ✅ Format phone number to international format
+      function formatPhoneNumber(phone) {
+        // Remove all spaces, dashes, parentheses
+        phone = phone.replace(/[\s\-\(\)]/g, "");
+
+        // If it starts with +, keep it
+        if (phone.startsWith("+")) {
+          return phone;
+        }
+
+        // If it starts with 00, replace with +
+        if (phone.startsWith("00")) {
+          return "+" + phone.substring(2);
+        }
+
+        // If it starts with 962 (Jordan) but no +, add it
+        if (phone.startsWith("962")) {
+          return "+" + phone;
+        }
+
+        // If it starts with 0, replace with +962
+        if (phone.startsWith("0")) {
+          return "+962" + phone.substring(1);
+        }
+
+        // Default: assume it needs + prefix
+        return "+" + phone;
+      }
+
+      // ✅ Test backend connection
+      async function testBackendConnection() {
+        const statusDiv = document.getElementById("connectionStatus");
+
+        try {
+          addDebugLog("🔍 اختبار الاتصال بالخادم: " + BACKEND_URL);
+
+          // Test /bookings endpoint
+          const response = await fetch(`${BACKEND_URL}/bookings`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          addDebugLog(
+            `📡 استجابة الخادم: ${response.status} ${response.statusText}`,
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          addDebugLog(
+            `✅ تم الاتصال بالخادم بنجاح - وجد ${data.bookings?.length || 0} حجز`,
+            "success",
+          );
+
+          statusDiv.className = "connection-status connected";
+          statusDiv.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>✅ الاتصال بالخادم ناجح (${BACKEND_URL})</span>
+          `;
+
+          return true;
+        } catch (err) {
+          console.error("Connection error:", err);
+          addDebugLog(`❌ فشل الاتصال بالخادم: ${err.message}`, "error");
+
+          statusDiv.className = "connection-status error";
+          statusDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>❌ خطأ في الاتصال بالخادم: ${err.message}</span>
+          `;
+
+          return false;
+        }
+      }
 
       async function loadClinicSettings() {
         const { data, error } = await supabaseClient
@@ -814,12 +921,17 @@
         progressInfo.textContent = message;
       }
 
-      // ✅ Load bookings from index.js backend
+      // ✅ Load bookings from backend
       async function loadBookingsData() {
         try {
           addDebugLog("جاري تحميل الحجوزات من الخادم...");
 
           const response = await fetch(`${BACKEND_URL}/bookings`);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
           const data = await response.json();
 
           allBookings = data.bookings || [];
@@ -895,7 +1007,10 @@
           return;
         }
 
-        phone = phone.replace(/[\s\-\(\)]/g, "");
+        // Format phone number
+        phone = formatPhoneNumber(phone);
+
+        addDebugLog(`تنسيق الرقم: ${phoneInput.value.trim()} → ${phone}`);
 
         if (recipientPhones.some((p) => p.phone === phone)) {
           showToast("هذا الرقم موجود بالفعل", "warning");
@@ -978,14 +1093,17 @@
           let addedCount = 0;
 
           filtered.forEach((b) => {
-            if (b.phone && !existingPhones.has(b.phone)) {
-              existingPhones.add(b.phone);
-              recipientPhones.push({
-                phone: b.phone,
-                name: b.name || "مستلم",
-                service: b.service || "",
-              });
-              addedCount++;
+            if (b.phone) {
+              const formattedPhone = formatPhoneNumber(b.phone);
+              if (!existingPhones.has(formattedPhone)) {
+                existingPhones.add(formattedPhone);
+                recipientPhones.push({
+                  phone: formattedPhone,
+                  name: b.name || "مستلم",
+                  service: b.service || "",
+                });
+                addedCount++;
+              }
             }
           });
 
@@ -1016,14 +1134,17 @@
           let addedCount = 0;
 
           allBookings.forEach((b) => {
-            if (b.phone && !existingPhones.has(b.phone)) {
-              existingPhones.add(b.phone);
-              recipientPhones.push({
-                phone: b.phone,
-                name: b.name || "مستلم",
-                service: b.service || "",
-              });
-              addedCount++;
+            if (b.phone) {
+              const formattedPhone = formatPhoneNumber(b.phone);
+              if (!existingPhones.has(formattedPhone)) {
+                existingPhones.add(formattedPhone);
+                recipientPhones.push({
+                  phone: formattedPhone,
+                  name: b.name || "مستلم",
+                  service: b.service || "",
+                });
+                addedCount++;
+              }
             }
           });
 
@@ -1036,7 +1157,7 @@
               "success",
             );
           } else {
-            showToast("جميع جهات الاتصال موجودة مسبقاً", "warning");
+            showToast("جميع جهات اتصال موجودة مسبقاً", "warning");
           }
         } catch (err) {
           console.error("Error:", err);
@@ -1062,8 +1183,9 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
-          loadClinicSettings();
-          loadBookingsData();
+          await loadClinicSettings();
+          await testBackendConnection();
+          await loadBookingsData();
         } else {
           document.getElementById("errorMsg").style.display = "block";
         }
@@ -1078,8 +1200,11 @@
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
-        loadClinicSettings();
-        loadBookingsData();
+        loadClinicSettings().then(() => {
+          testBackendConnection().then(() => {
+            loadBookingsData();
+          });
+        });
       }
 
       const themeToggle = document.getElementById("themeToggle");
@@ -1121,7 +1246,7 @@
         }
       });
 
-      // ✅ Send WhatsApp message via index.js /send-campaign endpoint
+      // ✅ Send WhatsApp message via /send-campaign endpoint
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
@@ -1134,13 +1259,21 @@
             image: imageUrl || undefined,
           };
 
-          addDebugLog(`إرسال رسالة إلى ${phone}...`);
+          addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
+          addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
           const res = await fetch(`${BACKEND_URL}/send-campaign`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+
+          addDebugLog(`📡 استجابة: ${res.status} ${res.statusText}`);
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`HTTP ${res.status}: ${errorText}`);
+          }
 
           const data = await res.json();
 
@@ -1149,14 +1282,14 @@
             return true;
           } else {
             addDebugLog(
-              `فشل إرسال رسالة إلى ${phone}: ${JSON.stringify(data)}`,
+              `⚠️ فشل إرسال رسالة إلى ${phone}: ${JSON.stringify(data)}`,
               "error",
             );
             return false;
           }
         } catch (err) {
           addDebugLog(
-            `خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
+            `❌ خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
             "error",
           );
           return false;
@@ -1171,8 +1304,6 @@
         const imageUrl = document.getElementById("offerImage").value.trim();
 
         document.getElementById("debugContent").innerHTML = "";
-        document.getElementById("debugInfo").style.display = "block";
-        document.getElementById("progressInfo").style.display = "none";
 
         if (!title || !desc || !date) {
           alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
@@ -1212,6 +1343,7 @@
             if (success) totalSuccess++;
             else totalFail++;
 
+            // Delay between messages (2 seconds)
             if (i < recipientPhones.length - 1) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
             }
