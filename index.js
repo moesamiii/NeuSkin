@@ -6,6 +6,7 @@
    ✔ Improved error handling
    ✔ Better user feedback
    ✔ Code organization improvements
+   ✔ Campaign sending endpoint ✨ NEW
    ========================================================= */
 
 import express from "express";
@@ -875,6 +876,99 @@ app.get("/bookings", async (req, res) => {
 });
 
 /* =========================================================
+   📤 CAMPAIGN SENDING ENDPOINT ✨ NEW
+   ========================================================= */
+app.post("/api/send-campaign", async (req, res) => {
+  try {
+    const { name, phone, service, appointment, image } = req.body;
+
+    console.log("📤 Campaign request received:");
+    console.log("- Name:", name);
+    console.log("- Phone:", phone);
+    console.log("- Service:", service);
+    console.log("- Message:", appointment);
+    console.log("- Image:", image);
+
+    // Validate required fields
+    if (!phone || !appointment) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone and message are required",
+      });
+    }
+
+    // Format phone number to WhatsApp format (remove all spaces, dashes, etc.)
+    let formattedPhone = phone.replace(/[\s\-\(\)]/g, "");
+
+    // Remove + if present (WhatsApp API expects number without +)
+    if (formattedPhone.startsWith("+")) {
+      formattedPhone = formattedPhone.substring(1);
+    }
+
+    console.log("📱 Formatted phone:", formattedPhone);
+
+    // Prepare WhatsApp message payload
+    const messagePayload = {
+      messaging_product: "whatsapp",
+      to: formattedPhone,
+    };
+
+    // If image is provided, send image with caption
+    if (image && image.trim()) {
+      messagePayload.type = "image";
+      messagePayload.image = {
+        link: image,
+        caption: appointment,
+      };
+      console.log("📸 Sending image message");
+    } else {
+      // Send text only
+      messagePayload.type = "text";
+      messagePayload.text = {
+        body: appointment,
+      };
+      console.log("💬 Sending text message");
+    }
+
+    // Send to WhatsApp API
+    const whatsappResponse = await axios.post(
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      messagePayload,
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    console.log("✅ WhatsApp API response:", whatsappResponse.data);
+
+    return res.status(200).json({
+      success: true,
+      messageId: whatsappResponse.data.messages?.[0]?.id,
+      phone: formattedPhone,
+    });
+  } catch (error) {
+    console.error("❌ Campaign send error:", error.message);
+
+    if (error.response) {
+      console.error("WhatsApp API error:", error.response.data);
+      return res.status(error.response.status).json({
+        success: false,
+        error: error.response.data?.error?.message || "WhatsApp API error",
+        details: error.response.data,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/* =========================================================
    🚀 START SERVER
    ========================================================= */
 const PORT = process.env.PORT || 3000;
@@ -882,8 +976,8 @@ app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
   console.log("🏥 Clinic:", clinicSettings.clinic_name);
   console.log("💾 Connected to Supabase Database");
-  console.log("✨ Version: 2.0 - Refactored & Improved");
+  console.log("✨ Version: 2.1 - Refactored & Campaign Support");
   console.log(
-    "📊 Features: Better validation, No empty fields, Phone normalization",
+    "📊 Features: Better validation, No empty fields, Phone normalization, Campaign sending",
   );
 });
