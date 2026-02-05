@@ -1262,9 +1262,11 @@
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
           addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
-          const res = await fetch(`${BACKEND_URL}/send-campaign`, {
+          const res = await fetch("/api/send-campaign", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify(payload),
           });
 
