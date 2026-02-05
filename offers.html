@@ -701,7 +701,7 @@
               <div class="load-section">
                 <div class="load-section-title">
                   <i class="fa-solid fa-database"></i>
-                  تحميل من الحجوزات (Google Sheets)
+                  تحميل من الحجوزات (Supabase)
                 </div>
 
                 <div class="filter-row">
@@ -766,7 +766,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ✅ Backend API URL
+      // ✅ Backend API URL - FIXED
       const BACKEND_URL = window.location.origin;
 
       // 🔑 Supabase configuration
@@ -1246,7 +1246,7 @@
         }
       });
 
-      // ✅ Send WhatsApp message via /send-campaign endpoint
+      // ✅ Send WhatsApp message via /api/send-campaign endpoint
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
@@ -1262,7 +1262,8 @@
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
           addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
-          const res = await fetch("/api/send-campaign", {
+          // ✅ FIX: Use BACKEND_URL instead of hardcoded path
+          const res = await fetch(`${BACKEND_URL}/api/send-campaign`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
