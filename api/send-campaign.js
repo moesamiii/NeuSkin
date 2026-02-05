@@ -6,33 +6,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { phone, appointment, image } = req.body;
+    const { appointment, image } = req.body;
 
-    if (!phone || !appointment) {
+    if (!appointment) {
       return res.status(400).json({
         success: false,
-        error: "phone and appointment are required",
+        error: "appointment is required",
       });
     }
 
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "962" + formattedPhone.slice(1);
+    const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
+    const payload = {
+      messaging_product: "whatsapp",
+      to: "962785050875", // ✅ EXACT NUMBER
+    };
+
+    if (image) {
+      payload.type = "image";
+      payload.image = {
+        link: image,
+        caption: appointment,
+      };
+    } else {
+      payload.type = "text";
+      payload.text = {
+        body: appointment,
+      };
     }
 
     const response = await axios.post(
-      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: formattedPhone,
-        type: image ? "image" : "text",
-        ...(image
-          ? { image: { link: image, caption: appointment } }
-          : { text: { body: appointment } }),
-      },
+      `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+      payload,
       {
         headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
           "Content-Type": "application/json",
         },
       },
@@ -40,7 +49,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      id: response.data.messages?.[0]?.id,
+      messageId: response.data.messages?.[0]?.id,
     });
   } catch (err) {
     return res.status(500).json({
