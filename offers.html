@@ -1249,9 +1249,9 @@
 
           // ✅ TRY ENDPOINT 1: /api/send-campaign (from index.js)
           try {
-            addDebugLog(`🔄 محاولة 1: ${BACKEND_URL}/api/send-campaign`);
+            addDebugLog(`🔄 محاولة 1: ${BACKEND_URL}/api/send-whatsapp`);
 
-            const res1 = await fetch(`${BACKEND_URL}/api/send-campaign`, {
+            const res1 = await fetch(`${BACKEND_URL}/api/send-whatsapp`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
@@ -1273,11 +1273,10 @@
             addDebugLog(`⚠️ فشل endpoint 1: ${err.message}`);
           }
 
-          // ✅ TRY ENDPOINT 2: /api/sendWhatsApp (Vercel serverless function)
           try {
-            addDebugLog(`🔄 محاولة 2: ${BACKEND_URL}/api/sendWhatsApp`);
+            addDebugLog(`🔄 محاولة 2: ${BACKEND_URL}/api/send-whatsapp`);
 
-            const res2 = await fetch(`${BACKEND_URL}/api/sendWhatsApp`, {
+            const res2 = await fetch(`${BACKEND_URL}/api/send-whatsapp`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
