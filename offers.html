@@ -1246,7 +1246,7 @@
         }
       });
 
-      // ✅ Send WhatsApp message via /api/send-campaign endpoint
+      // ✅ FIXED: Send WhatsApp message via /sendWhatsApp endpoint (matches working code)
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
@@ -1256,14 +1256,14 @@
             phone: phone,
             service: document.getElementById("offerTitle").value.trim(),
             appointment: messageText,
-            image: imageUrl || undefined,
+            image: imageUrl || null,
           };
 
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
           addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
-          // ✅ FIX: Use BACKEND_URL instead of hardcoded path
-          const res = await fetch(`${BACKEND_URL}/api/send-campaign`, {
+          // ✅ FIXED: Use /sendWhatsApp endpoint instead of /api/send-campaign
+          const res = await fetch(`${BACKEND_URL}/sendWhatsApp`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
