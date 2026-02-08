@@ -782,36 +782,22 @@
       let recipientPhones = [];
       let allBookings = [];
 
-      // ✅ Format phone number to international format
       function formatPhoneNumber(phone) {
         phone = phone.replace(/[\s\-\(\)]/g, "");
-        if (phone.startsWith("+")) {
-          return phone.substring(1); // Remove + for WhatsApp API
-        }
-        if (phone.startsWith("00")) {
-          return phone.substring(2);
-        }
-        if (phone.startsWith("962")) {
-          return phone;
-        }
-        if (phone.startsWith("0")) {
-          return "962" + phone.substring(1);
-        }
+        if (phone.startsWith("+")) return phone.substring(1);
+        if (phone.startsWith("00")) return phone.substring(2);
+        if (phone.startsWith("962")) return phone;
+        if (phone.startsWith("0")) return "962" + phone.substring(1);
         return phone;
       }
 
-      // ✅ Test backend connection
       async function testBackendConnection() {
         const statusDiv = document.getElementById("connectionStatus");
-
         try {
           addDebugLog("🔍 اختبار الاتصال بالخادم: " + BACKEND_URL);
-
           const response = await fetch(`${BACKEND_URL}/bookings`, {
             method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
           });
 
           addDebugLog(
@@ -829,22 +815,13 @@
           );
 
           statusDiv.className = "connection-status connected";
-          statusDiv.innerHTML = `
-            <i class="fas fa-check-circle"></i>
-            <span>✅ الاتصال بالخادم ناجح (${BACKEND_URL})</span>
-          `;
-
+          statusDiv.innerHTML = `<i class="fas fa-check-circle"></i><span>✅ الاتصال بالخادم ناجح (${BACKEND_URL})</span>`;
           return true;
         } catch (err) {
           console.error("Connection error:", err);
           addDebugLog(`❌ فشل الاتصال بالخادم: ${err.message}`, "error");
-
           statusDiv.className = "connection-status error";
-          statusDiv.innerHTML = `
-            <i class="fas fa-exclamation-triangle"></i>
-            <span>❌ خطأ في الاتصال بالخادم: ${err.message}</span>
-          `;
-
+          statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>❌ خطأ في الاتصال بالخادم: ${err.message}</span>`;
           return false;
         }
       }
@@ -855,7 +832,6 @@
           .select("*")
           .eq("clinic_id", "default")
           .single();
-
         if (!error && data) {
           clinicSettings = data;
           applyClinicSettings();
@@ -869,13 +845,11 @@
           sidebarClinicName.textContent =
             clinicName.toUpperCase() + " DASHBOARD";
         }
-
         const footerText = document.getElementById("footerText");
         if (footerText) {
           const currentYear = new Date().getFullYear();
           footerText.textContent = `© ${currentYear} ${clinicName}`;
         }
-
         document.title = "إرسال العروض المخصصة - " + clinicName;
       }
 
@@ -894,10 +868,8 @@
         const debugContent = document.getElementById("debugContent");
         const debugInfo = document.getElementById("debugInfo");
         debugInfo.style.display = "block";
-
         const timestamp = new Date().toLocaleTimeString("ar-EG");
         const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-
         debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
         debugContent.scrollTop = debugContent.scrollHeight;
         console.log(`[${timestamp}] ${message}`);
@@ -912,19 +884,14 @@
       async function loadBookingsData() {
         try {
           addDebugLog("جاري تحميل الحجوزات من الخادم...");
-
           const response = await fetch(`${BACKEND_URL}/bookings`);
-
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
-
           const data = await response.json();
-
           allBookings = data.bookings || [];
           populateServiceFilter();
           updateServiceStats();
-
           addDebugLog(
             `تم تحميل ${allBookings.length} حجز من قاعدة البيانات`,
             "success",
@@ -940,9 +907,7 @@
         const services = [
           ...new Set(allBookings.map((b) => b.service).filter(Boolean)),
         ];
-
         serviceFilter.innerHTML = '<option value="all">جميع الخدمات</option>';
-
         services.forEach((service) => {
           const option = document.createElement("option");
           option.value = service;
@@ -954,25 +919,17 @@
       function updateServiceStats() {
         const statsContainer = document.getElementById("serviceStats");
         const serviceCounts = {};
-
         allBookings.forEach((b) => {
-          if (b.service) {
+          if (b.service)
             serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
-          }
         });
-
         const sortedServices = Object.entries(serviceCounts).sort(
           (a, b) => b[1] - a[1],
         );
-
         statsContainer.innerHTML = sortedServices
           .map(
-            ([service, count]) => `
-          <div class="service-stat-badge" onclick="quickFilterService('${service}')">
-            ${service}
-            <span class="count">${count}</span>
-          </div>
-        `,
+            ([service, count]) =>
+              `<div class="service-stat-badge" onclick="quickFilterService('${service}')">${service}<span class="count">${count}</span></div>`,
           )
           .join("");
       }
@@ -985,7 +942,6 @@
       function addPhoneNumber() {
         const phoneInput = document.getElementById("phoneInput");
         const nameInput = document.getElementById("phoneNameInput");
-
         let phone = phoneInput.value.trim();
         const name = nameInput.value.trim() || "مستلم";
 
@@ -995,7 +951,6 @@
         }
 
         phone = formatPhoneNumber(phone);
-
         addDebugLog(`تنسيق الرقم: ${phoneInput.value.trim()} → ${phone}`);
 
         if (recipientPhones.some((p) => p.phone === phone)) {
@@ -1004,10 +959,8 @@
         }
 
         recipientPhones.push({ phone, name, service: "يدوي" });
-
         phoneInput.value = "";
         nameInput.value = "";
-
         renderPhoneList();
         showToast("تم إضافة الرقم بنجاح");
         addDebugLog(`تم إضافة رقم يدوياً: ${phone} (${name})`);
@@ -1021,7 +974,6 @@
 
       function clearAllPhones() {
         if (recipientPhones.length === 0) return;
-
         if (confirm("هل أنت متأكد من مسح جميع الأرقام؟")) {
           recipientPhones = [];
           renderPhoneList();
@@ -1035,42 +987,30 @@
         const phoneCount = document.getElementById("phoneCount");
 
         if (recipientPhones.length === 0) {
-          phoneList.innerHTML = `
-            <div class="no-phones-msg">
-              <i class="fa-solid fa-phone-slash"></i>
-              لم يتم إضافة أي أرقام بعد
-            </div>
-          `;
+          phoneList.innerHTML = `<div class="no-phones-msg"><i class="fa-solid fa-phone-slash"></i>لم يتم إضافة أي أرقام بعد</div>`;
         } else {
           phoneList.innerHTML = recipientPhones
             .map(
               (p, index) => `
-            <div class="phone-tag">
-              <span class="phone-number">${p.phone}</span>
-              <span class="phone-name">${p.name}</span>
-              ${
-                p.service && p.service !== "يدوي"
-                  ? `<span class="phone-service">${p.service}</span>`
-                  : ""
-              }
-              <button class="remove-phone" onclick="removePhone(${index})">×</button>
-            </div>
-          `,
+      <div class="phone-tag">
+        <span class="phone-number">${p.phone}</span>
+        <span class="phone-name">${p.name}</span>
+        ${p.service && p.service !== "يدوي" ? `<span class="phone-service">${p.service}</span>` : ""}
+        <button class="remove-phone" onclick="removePhone(${index})">×</button>
+      </div>
+    `,
             )
             .join("");
         }
-
         phoneCount.innerHTML = `عدد المستلمين: <strong>${recipientPhones.length}</strong>`;
       }
 
       async function loadFilteredBookings() {
         const serviceFilter = document.getElementById("serviceFilter").value;
-
         updateProgress("جاري تحميل الحجوزات...");
 
         try {
           let filtered = [...allBookings];
-
           if (serviceFilter !== "all") {
             filtered = filtered.filter((b) => b.service === serviceFilter);
           }
@@ -1157,7 +1097,6 @@
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
-
         const { data } = await supabaseClient
           .from("admin_auth")
           .select("*")
@@ -1205,6 +1144,7 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
+
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
@@ -1215,27 +1155,24 @@
       const imagesPreviewContainer = document.getElementById(
         "imagesPreviewContainer",
       );
-
       offerImage.addEventListener("input", () => {
         const imageUrl = offerImage.value.trim();
-
         if (imageUrl) {
           imagesPreviewContainer.innerHTML = `
-            <div class="image-preview-item">
-              <img src="${imageUrl}" class="image-preview" alt="صورة العرض" onerror="this.src='https://via.placeholder.com/120?text=خطأ+في+الصورة'">
-            </div>
-          `;
+      <div class="image-preview-item">
+        <img src="${imageUrl}" class="image-preview" alt="صورة العرض" onerror="this.src='https://via.placeholder.com/120?text=خطأ+في+الصورة'">
+      </div>
+    `;
           addDebugLog(`تم إضافة رابط الصورة`);
         } else {
           imagesPreviewContainer.innerHTML = "";
         }
       });
 
-      // ✅ CRITICAL FIX: Try multiple endpoints with fallback
+      // ✅ FIXED: Use the new unified endpoint
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
-
           const payload = {
             name: clinicNameForMessage,
             phone: phone,
@@ -1247,69 +1184,35 @@
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
           addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
-          // ✅ TRY ENDPOINT 1: /api/send-campaign (from index.js)
-          try {
-            addDebugLog(`🔄 محاولة 1: ${BACKEND_URL}/api/send-campaign`);
+          // ✅ Use the new unified endpoint
+          const endpoint = `${BACKEND_URL}/api/send-whatsapp`;
+          addDebugLog(`🔄 الإرسال إلى: ${endpoint}`);
 
-            const res1 = await fetch(`${BACKEND_URL}/api/send-campaign`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-            addDebugLog(`📡 استجابة 1: ${res1.status} ${res1.statusText}`);
+          addDebugLog(`📡 استجابة: ${response.status} ${response.statusText}`);
 
-            if (res1.ok) {
-              const data = await res1.json();
-              if (data.success) {
-                addDebugLog(
-                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 1)`,
-                  "success",
-                );
-                return true;
-              }
-            }
-          } catch (err) {
-            addDebugLog(`⚠️ فشل endpoint 1: ${err.message}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            addDebugLog(`❌ خطأ: ${JSON.stringify(errorData)}`, "error");
+            return false;
           }
 
-          // ✅ TRY ENDPOINT 2: /api/sendWhatsApp (Vercel serverless function)
-          try {
-            addDebugLog(`🔄 محاولة 2: ${BACKEND_URL}/api/sendWhatsApp`);
+          const data = await response.json();
 
-            const res2 = await fetch(`${BACKEND_URL}/api/sendWhatsApp`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            addDebugLog(`📡 استجابة 2: ${res2.status} ${res2.statusText}`);
-
-            if (res2.ok) {
-              const data = await res2.json();
-              if (data.success) {
-                addDebugLog(
-                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 2)`,
-                  "success",
-                );
-                return true;
-              }
-            }
-          } catch (err) {
-            addDebugLog(`⚠️ فشل endpoint 2: ${err.message}`);
+          if (data.success) {
+            addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
+            return true;
+          } else {
+            addDebugLog(`❌ فشل: ${JSON.stringify(data)}`, "error");
+            return false;
           }
-
-          // ✅ ALL ENDPOINTS FAILED
-          addDebugLog(
-            `❌ فشل إرسال الرسالة إلى ${phone} - جميع المحاولات فشلت`,
-            "error",
-          );
-          return false;
         } catch (err) {
-          addDebugLog(
-            `❌ خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
-            "error",
-          );
+          addDebugLog(`❌ خطأ: ${err.message}`, "error");
           return false;
         }
       }
@@ -1343,7 +1246,6 @@
         try {
           let totalSuccess = 0;
           let totalFail = 0;
-
           const totalRecipients = recipientPhones.length;
 
           for (let i = 0; i < recipientPhones.length; i++) {
