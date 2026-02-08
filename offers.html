@@ -1231,84 +1231,35 @@
         }
       });
 
-      // ✅ CRITICAL FIX: Try multiple endpoints with fallback
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
-          const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
-
           const payload = {
-            name: clinicNameForMessage,
             phone: phone,
-            service: document.getElementById("offerTitle").value.trim(),
             appointment: messageText,
             image: imageUrl || null,
           };
 
-          addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
-          addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
+          addDebugLog(`📤 إرسال إلى ${phone}`);
+          addDebugLog(`📦 Payload: ${JSON.stringify(payload)}`);
 
-          // ✅ TRY ENDPOINT 1: /api/send-campaign (from index.js)
-          try {
-            addDebugLog(`🔄 محاولة 1: ${BACKEND_URL}/api/send-whatsapp`);
+          const res = await fetch(`${BACKEND_URL}/api/send-campaign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-            const res1 = await fetch(`${BACKEND_URL}/api/send-whatsapp`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
+          const data = await res.json();
+          addDebugLog(`📡 Response: ${res.status}`);
 
-            addDebugLog(`📡 استجابة 1: ${res1.status} ${res1.statusText}`);
-
-            if (res1.ok) {
-              const data = await res1.json();
-              if (data.success) {
-                addDebugLog(
-                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 1)`,
-                  "success",
-                );
-                return true;
-              }
-            }
-          } catch (err) {
-            addDebugLog(`⚠️ فشل endpoint 1: ${err.message}`);
+          if (res.ok && data.success) {
+            addDebugLog(`✅ تم الإرسال بنجاح إلى ${phone}`, "success");
+            return true;
           }
 
-          try {
-            addDebugLog(`🔄 محاولة 2: ${BACKEND_URL}/api/send-whatsapp`);
-
-            const res2 = await fetch(`${BACKEND_URL}/api/send-whatsapp`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            addDebugLog(`📡 استجابة 2: ${res2.status} ${res2.statusText}`);
-
-            if (res2.ok) {
-              const data = await res2.json();
-              if (data.success) {
-                addDebugLog(
-                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 2)`,
-                  "success",
-                );
-                return true;
-              }
-            }
-          } catch (err) {
-            addDebugLog(`⚠️ فشل endpoint 2: ${err.message}`);
-          }
-
-          // ✅ ALL ENDPOINTS FAILED
-          addDebugLog(
-            `❌ فشل إرسال الرسالة إلى ${phone} - جميع المحاولات فشلت`,
-            "error",
-          );
+          addDebugLog(`❌ فشل الإرسال: ${JSON.stringify(data)}`, "error");
           return false;
         } catch (err) {
-          addDebugLog(
-            `❌ خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
-            "error",
-          );
+          addDebugLog(`❌ Exception: ${err.message}`, "error");
           return false;
         }
       }
