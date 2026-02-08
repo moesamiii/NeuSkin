@@ -766,7 +766,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ✅ Backend API URL - FIXED
+      // ✅ Backend API URL
       const BACKEND_URL = window.location.origin;
 
       // 🔑 Supabase configuration
@@ -784,31 +784,20 @@
 
       // ✅ Format phone number to international format
       function formatPhoneNumber(phone) {
-        // Remove all spaces, dashes, parentheses
         phone = phone.replace(/[\s\-\(\)]/g, "");
-
-        // If it starts with +, keep it
         if (phone.startsWith("+")) {
+          return phone.substring(1); // Remove + for WhatsApp API
+        }
+        if (phone.startsWith("00")) {
+          return phone.substring(2);
+        }
+        if (phone.startsWith("962")) {
           return phone;
         }
-
-        // If it starts with 00, replace with +
-        if (phone.startsWith("00")) {
-          return "+" + phone.substring(2);
-        }
-
-        // If it starts with 962 (Jordan) but no +, add it
-        if (phone.startsWith("962")) {
-          return "+" + phone;
-        }
-
-        // If it starts with 0, replace with +962
         if (phone.startsWith("0")) {
-          return "+962" + phone.substring(1);
+          return "962" + phone.substring(1);
         }
-
-        // Default: assume it needs + prefix
-        return "+" + phone;
+        return phone;
       }
 
       // ✅ Test backend connection
@@ -818,7 +807,6 @@
         try {
           addDebugLog("🔍 اختبار الاتصال بالخادم: " + BACKEND_URL);
 
-          // Test /bookings endpoint
           const response = await fetch(`${BACKEND_URL}/bookings`, {
             method: "GET",
             headers: {
@@ -921,7 +909,6 @@
         progressInfo.textContent = message;
       }
 
-      // ✅ Load bookings from backend
       async function loadBookingsData() {
         try {
           addDebugLog("جاري تحميل الحجوزات من الخادم...");
@@ -1007,7 +994,6 @@
           return;
         }
 
-        // Format phone number
         phone = formatPhoneNumber(phone);
 
         addDebugLog(`تنسيق الرقم: ${phoneInput.value.trim()} → ${phone}`);
@@ -1225,7 +1211,6 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // ✅ Handle image URL preview
       const offerImage = document.getElementById("offerImage");
       const imagesPreviewContainer = document.getElementById(
         "imagesPreviewContainer",
@@ -1246,7 +1231,7 @@
         }
       });
 
-      // ✅ FIXED: Send WhatsApp message via /sendWhatsApp endpoint (matches working code)
+      // ✅ CRITICAL FIX: Try multiple endpoints with fallback
       async function sendWhatsAppMessage(phone, messageText, imageUrl) {
         try {
           const clinicNameForMessage = clinicSettings?.clinic_name || "Clinic";
@@ -1262,34 +1247,64 @@
           addDebugLog(`📤 إرسال رسالة إلى ${phone}...`);
           addDebugLog(`📦 البيانات: ${JSON.stringify(payload)}`);
 
-          // ✅ FIXED: Use /sendWhatsApp endpoint instead of /api/send-campaign
-          const res = await fetch(`${BACKEND_URL}/sendWhatsApp`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
+          // ✅ TRY ENDPOINT 1: /api/send-campaign (from index.js)
+          try {
+            addDebugLog(`🔄 محاولة 1: ${BACKEND_URL}/api/send-campaign`);
 
-          addDebugLog(`📡 استجابة: ${res.status} ${res.statusText}`);
+            const res1 = await fetch(`${BACKEND_URL}/api/send-campaign`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
 
-          if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`HTTP ${res.status}: ${errorText}`);
+            addDebugLog(`📡 استجابة 1: ${res1.status} ${res1.statusText}`);
+
+            if (res1.ok) {
+              const data = await res1.json();
+              if (data.success) {
+                addDebugLog(
+                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 1)`,
+                  "success",
+                );
+                return true;
+              }
+            }
+          } catch (err) {
+            addDebugLog(`⚠️ فشل endpoint 1: ${err.message}`);
           }
 
-          const data = await res.json();
+          // ✅ TRY ENDPOINT 2: /api/sendWhatsApp (Vercel serverless function)
+          try {
+            addDebugLog(`🔄 محاولة 2: ${BACKEND_URL}/api/sendWhatsApp`);
 
-          if (data.success) {
-            addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
-            return true;
-          } else {
-            addDebugLog(
-              `⚠️ فشل إرسال رسالة إلى ${phone}: ${JSON.stringify(data)}`,
-              "error",
-            );
-            return false;
+            const res2 = await fetch(`${BACKEND_URL}/api/sendWhatsApp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            addDebugLog(`📡 استجابة 2: ${res2.status} ${res2.statusText}`);
+
+            if (res2.ok) {
+              const data = await res2.json();
+              if (data.success) {
+                addDebugLog(
+                  `✅ تم إرسال رسالة إلى ${phone} بنجاح (endpoint 2)`,
+                  "success",
+                );
+                return true;
+              }
+            }
+          } catch (err) {
+            addDebugLog(`⚠️ فشل endpoint 2: ${err.message}`);
           }
+
+          // ✅ ALL ENDPOINTS FAILED
+          addDebugLog(
+            `❌ فشل إرسال الرسالة إلى ${phone} - جميع المحاولات فشلت`,
+            "error",
+          );
+          return false;
         } catch (err) {
           addDebugLog(
             `❌ خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
@@ -1346,7 +1361,6 @@
             if (success) totalSuccess++;
             else totalFail++;
 
-            // Delay between messages (2 seconds)
             if (i < recipientPhones.length - 1) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
             }
