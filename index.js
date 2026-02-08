@@ -969,15 +969,6 @@ app.post("/api/send-campaign", async (req, res) => {
 });
 
 /* =========================================================
-   🚀 START SERVER
+   🚀 EXPORT APP FOR VERCEL (SERVERLESS)
    ========================================================= */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
-  console.log("🏥 Clinic:", clinicSettings.clinic_name);
-  console.log("💾 Connected to Supabase Database");
-  console.log("✨ Version: 2.1 - Refactored & Campaign Support");
-  console.log(
-    "📊 Features: Better validation, No empty fields, Phone normalization, Campaign sending",
-  );
-});
+export default app;
