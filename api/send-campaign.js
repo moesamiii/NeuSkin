@@ -6,12 +6,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { appointment, image } = req.body;
+    const { phone, appointment, image } = req.body;
 
-    if (!appointment) {
+    if (!phone || !appointment) {
       return res.status(400).json({
         success: false,
-        error: "appointment is required",
+        error: "phone and appointment are required",
       });
     }
 
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     const payload = {
       messaging_product: "whatsapp",
-      to: "962785050875", // ✅ EXACT NUMBER
+      to: phone, // ✅ USE DYNAMIC PHONE FROM REQUEST
     };
 
     if (image) {
