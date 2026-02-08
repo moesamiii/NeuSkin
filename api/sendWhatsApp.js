@@ -1,19 +1,28 @@
 /**
- * sendWhatsApp.js
- * Vercel Serverless Function for sending WhatsApp appointment confirmations
- * Location: /api/sendWhatsApp.js
+ * api/send-whatsapp.js
+ *
+ * Unified WhatsApp sender for both campaigns and appointments
+ * Handles text and image messages with automatic fallback
  */
-
 import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
   // ✅ Enable CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS, GET");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
+  }
+
+  // ✅ GET endpoint for testing
+  if (req.method === "GET") {
+    return res.status(200).json({
+      status: "active",
+      message: "WhatsApp API is running",
+      timestamp: new Date().toISOString(),
+    });
   }
 
   if (req.method !== "POST") {
@@ -24,9 +33,12 @@ export default async function handler(req, res) {
     const { name, phone, service, appointment, image } = req.body;
 
     // ✅ Validate required fields
-    if (!name || !phone) {
-      console.error("❌ Missing name or phone");
-      return res.status(400).json({ error: "Missing name or phone" });
+    if (!phone || !appointment) {
+      console.error("❌ Missing required fields:", { phone, appointment });
+      return res.status(400).json({
+        success: false,
+        error: "Phone and appointment are required",
+      });
     }
 
     // ✅ Get WhatsApp credentials
@@ -35,10 +47,13 @@ export default async function handler(req, res) {
 
     if (!PHONE_NUMBER_ID || !WHATSAPP_TOKEN) {
       console.error("❌ Missing WhatsApp credentials");
-      return res.status(500).json({ error: "Server configuration error" });
+      return res.status(500).json({
+        success: false,
+        error: "Server configuration error: Missing WhatsApp credentials",
+      });
     }
 
-    // ✅ Load clinic name from Supabase
+    // ✅ Load clinic name from Supabase (optional)
     let clinicName = "Smile Clinic";
 
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -64,9 +79,10 @@ export default async function handler(req, res) {
 
     console.log("📤 Sending message to:", phone, "| Clinic:", clinicName);
 
-    const messageText = `👋 مرحبًا ${name}!
-تم حجز موعدك لخدمة ${service} في ${clinicName} 🦷
-📅 ${appointment}`;
+    // ✅ Build message text - FIXED SYNTAX ERROR
+    const messageText = name
+      ? `👋 مرحبًا ${name}!\n${service ? `لخدمة ${service} في ${clinicName} 🦷\n` : ""}📅 ${appointment}`
+      : appointment;
 
     const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
     const headers = {
@@ -78,7 +94,7 @@ export default async function handler(req, res) {
     // 🖼️ CASE 1: IMAGE MESSAGE
     // --------------------------------------------------
     if (image && image.startsWith("http")) {
-      console.log("📷 Sending image message");
+      console.log("📷 Sending image message:", image);
 
       const imagePayload = {
         messaging_product: "whatsapp",
@@ -100,7 +116,7 @@ export default async function handler(req, res) {
 
       // ❌ Fallback to text if image fails
       if (!imageResponse.ok || imageData.error) {
-        console.warn("⚠️ Image failed, fallback to text");
+        console.warn("⚠️ Image failed, fallback to text:", imageData);
 
         const textPayload = {
           messaging_product: "whatsapp",
@@ -119,12 +135,22 @@ export default async function handler(req, res) {
 
         const textData = await textResponse.json();
 
+        if (!textResponse.ok) {
+          console.error("❌ Text fallback also failed:", textData);
+          return res.status(500).json({
+            success: false,
+            error: textData,
+          });
+        }
+
         return res.status(200).json({
           success: true,
           fallback: true,
           messageId: textData.messages?.[0]?.id,
         });
       }
+
+      console.log("✅ Image sent successfully");
 
       // Send follow-up text
       const followupPayload = {
@@ -171,21 +197,25 @@ export default async function handler(req, res) {
     const textData = await textResponse.json();
 
     if (!textResponse.ok) {
-      console.error("❌ Message failed:", textData);
-      return res.status(500).json({ success: false, error: textData });
+      console.error("❌ Text message failed:", textData);
+      return res.status(500).json({
+        success: false,
+        error: textData,
+      });
     }
 
-    console.log("✅ Message sent successfully");
+    console.log("✅ Text sent successfully");
 
     return res.status(200).json({
       success: true,
       messageId: textData.messages?.[0]?.id,
     });
   } catch (error) {
-    console.error("🚨 sendWhatsApp error:", error);
+    console.error("🚨 Fatal error:", error);
     return res.status(500).json({
       success: false,
       error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 }
