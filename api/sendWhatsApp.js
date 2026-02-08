@@ -4,6 +4,7 @@
  * Unified WhatsApp sender for both campaigns and appointments
  * Handles text and image messages with automatic fallback
  */
+
 import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
@@ -79,7 +80,7 @@ export default async function handler(req, res) {
 
     console.log("📤 Sending message to:", phone, "| Clinic:", clinicName);
 
-    // ✅ Build message text - FIXED SYNTAX ERROR
+    // ✅ Build message text
     const messageText = name
       ? `👋 مرحبًا ${name}!\n${service ? `لخدمة ${service} في ${clinicName} 🦷\n` : ""}📅 ${appointment}`
       : appointment;
