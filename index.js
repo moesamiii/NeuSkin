@@ -269,6 +269,20 @@ function validateBookingData(booking) {
    💾 SUPABASE DATABASE FUNCTIONS
    ========================================================= */
 
+async function logInboundMessageSimple(from, text) {
+  try {
+    await supabase.from("whatsapp_messages").insert([
+      {
+        from_number: from,
+        message_body: text,
+        direction: "inbound",
+      },
+    ]);
+  } catch (err) {
+    console.error("Log inbound failed:", err.message);
+  }
+}
+
 /**
  * INSERT BOOKING - with validation
  */
@@ -406,6 +420,16 @@ async function sendTextMessage(to, text) {
       { messaging_product: "whatsapp", to, text: { body: text } },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } },
     );
+
+    // ✅ LOG OUTBOUND MESSAGE
+    await supabase.from("whatsapp_messages").insert([
+      {
+        from_number: PHONE_NUMBER_ID,
+        to_number: to,
+        message_body: text,
+        direction: "outbound",
+      },
+    ]);
   } catch (err) {
     console.error("❌ Send message error:", err.message);
   }
@@ -669,6 +693,8 @@ app.post("/webhook", async (req, res) => {
     // ============ TEXT MESSAGES ============
     if (message.type === "text") {
       const text = message.text.body.trim();
+      await logInboundMessageSimple(from, text);
+
       console.log("📩 Message from:", from, "Text:", text);
 
       // PRIORITY 0: RESET/START (Highest Priority)
