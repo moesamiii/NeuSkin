@@ -356,10 +356,143 @@
         font-size: 16px;
       }
 
+      /* Mobile Toggle */
+      .mobile-toggle {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: #25d366;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        transition: all 0.3s;
+      }
+
+      .mobile-toggle:active {
+        transform: scale(0.95);
+      }
+
       /* Responsive */
       @media (max-width: 900px) {
         .sidebar {
           width: 320px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+
+        .sidebar {
+          width: 100%;
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100vh;
+          z-index: 100;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+        }
+
+        .sidebar.mobile-open {
+          transform: translateX(0);
+        }
+
+        .main-chat {
+          width: 100%;
+          height: 100vh;
+        }
+
+        .mobile-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .back-btn {
+          font-size: 12px;
+          padding: 6px 12px;
+        }
+
+        .sidebar-title {
+          font-size: 16px;
+        }
+
+        .chat-avatar {
+          width: 45px;
+          height: 45px;
+          font-size: 18px;
+        }
+
+        .chat-name {
+          font-size: 15px;
+        }
+
+        .chat-preview {
+          font-size: 13px;
+        }
+
+        .header-title {
+          font-size: 15px;
+        }
+
+        .msg {
+          max-width: 85%;
+        }
+
+        .chat-container {
+          padding: 20px 4%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .sidebar-header {
+          padding: 12px;
+        }
+
+        .chat-item {
+          padding: 10px 12px;
+        }
+
+        .chat-avatar {
+          width: 40px;
+          height: 40px;
+          font-size: 16px;
+        }
+
+        .avatar {
+          width: 36px;
+          height: 36px;
+          font-size: 16px;
+        }
+
+        .header {
+          padding: 8px 12px;
+        }
+
+        .msg-body {
+          font-size: 13.5px;
+        }
+
+        .back-btn {
+          padding: 6px 10px;
+          font-size: 11px;
+        }
+
+        .mobile-toggle {
+          width: 50px;
+          height: 50px;
+          bottom: 16px;
+          right: 16px;
+          font-size: 22px;
         }
       }
     </style>
@@ -418,6 +551,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">
+      ☰
+    </button>
 
     <script>
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
@@ -524,6 +662,32 @@
         const container = document.getElementById("chatContainer");
         container.scrollTop = container.scrollHeight;
       }
+
+      // Mobile sidebar toggle
+      function toggleSidebar() {
+        const sidebar = document.querySelector(".sidebar");
+        const toggle = document.getElementById("mobileToggle");
+
+        sidebar.classList.toggle("mobile-open");
+
+        if (sidebar.classList.contains("mobile-open")) {
+          toggle.innerHTML = "✕";
+        } else {
+          toggle.innerHTML = "☰";
+        }
+      }
+
+      // Close sidebar when clicking on a chat item (mobile)
+      document.addEventListener("DOMContentLoaded", function () {
+        const chatItems = document.querySelectorAll(".chat-item");
+        chatItems.forEach((item) => {
+          item.addEventListener("click", function () {
+            if (window.innerWidth <= 768) {
+              toggleSidebar();
+            }
+          });
+        });
+      });
 
       loadMessages();
     </script>
