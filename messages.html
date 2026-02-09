@@ -19,7 +19,160 @@
         background: #111b21;
         height: 100vh;
         display: flex;
+        overflow: hidden;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 400px;
+        background: #111b21;
+        display: flex;
         flex-direction: column;
+        border-right: 1px solid #2a3942;
+      }
+
+      .sidebar-header {
+        background: #202c33;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #2a3942;
+      }
+
+      .sidebar-title {
+        color: #e9edef;
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .back-btn {
+        background: #2a3942;
+        color: #8696a0;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .back-btn:hover {
+        background: #374248;
+        color: #e9edef;
+      }
+
+      .search-box {
+        padding: 8px 12px;
+        background: #202c33;
+        border-bottom: 1px solid #2a3942;
+      }
+
+      .search-input {
+        width: 100%;
+        background: #2a3942;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        color: #e9edef;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .search-input::placeholder {
+        color: #8696a0;
+      }
+
+      .chat-list {
+        flex: 1;
+        overflow-y: auto;
+        background: #111b21;
+      }
+
+      .chat-item {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #2a3942;
+        background: #111b21;
+        transition: background 0.2s;
+      }
+
+      .chat-item:hover {
+        background: #202c33;
+      }
+
+      .chat-item.active {
+        background: #2a3942;
+      }
+
+      .chat-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .chat-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+
+      .chat-name {
+        color: #e9edef;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .chat-time {
+        color: #8696a0;
+        font-size: 12px;
+      }
+
+      .chat-preview {
+        color: #8696a0;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .unread-badge {
+        background: #25d366;
+        color: #111b21;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 12px;
+        min-width: 20px;
+        text-align: center;
+      }
+
+      /* Main Chat Area */
+      .main-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #0b141a;
       }
 
       /* Header */
@@ -176,20 +329,24 @@
       }
 
       /* Scrollbar */
-      .chat-container::-webkit-scrollbar {
+      .chat-container::-webkit-scrollbar,
+      .chat-list::-webkit-scrollbar {
         width: 6px;
       }
 
-      .chat-container::-webkit-scrollbar-track {
+      .chat-container::-webkit-scrollbar-track,
+      .chat-list::-webkit-scrollbar-track {
         background: transparent;
       }
 
-      .chat-container::-webkit-scrollbar-thumb {
+      .chat-container::-webkit-scrollbar-thumb,
+      .chat-list::-webkit-scrollbar-thumb {
         background: #374248;
         border-radius: 3px;
       }
 
-      .chat-container::-webkit-scrollbar-thumb:hover {
+      .chat-container::-webkit-scrollbar-thumb:hover,
+      .chat-list::-webkit-scrollbar-thumb:hover {
         background: #4a5660;
       }
 
@@ -198,20 +355,67 @@
         color: #53bdeb;
         font-size: 16px;
       }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .sidebar {
+          width: 320px;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="header">
-      <div class="avatar">💬</div>
-      <div class="header-info">
-        <div class="header-title">WhatsApp Messages</div>
-        <div class="header-status" id="status">Loading messages...</div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Chats</div>
+        <button
+          class="back-btn"
+          onclick="window.location.href = 'dashboard.html'"
+        >
+          ← Dashboard
+        </button>
+      </div>
+
+      <div class="search-box">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search or start new chat"
+        />
+      </div>
+
+      <div class="chat-list">
+        <div class="chat-item active">
+          <div class="chat-avatar">💬</div>
+          <div class="chat-info">
+            <div class="chat-header">
+              <div class="chat-name">WhatsApp Messages</div>
+              <div class="chat-time" id="lastMessageTime">--:--</div>
+            </div>
+            <div class="chat-preview" id="lastMessagePreview">Loading...</div>
+          </div>
+          <div class="unread-badge" id="unreadBadge" style="display: none">
+            0
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="chat-container" id="chatContainer">
-      <div class="chat" id="chat">
-        <div class="loading">Loading messages...</div>
+    <!-- Main Chat Area -->
+    <div class="main-chat">
+      <div class="header">
+        <div class="avatar">💬</div>
+        <div class="header-info">
+          <div class="header-title">WhatsApp Messages</div>
+          <div class="header-status" id="status">Loading messages...</div>
+        </div>
+      </div>
+
+      <div class="chat-container" id="chatContainer">
+        <div class="chat" id="chat">
+          <div class="loading">Loading messages...</div>
+        </div>
       </div>
     </div>
 
@@ -303,6 +507,18 @@
         // Update status
         document.getElementById("status").textContent =
           data.length > 0 ? `${data.length} messages` : "No messages";
+
+        // Update sidebar preview
+        if (data.length > 0) {
+          const lastMsg = data[data.length - 1];
+          document.getElementById("lastMessageTime").textContent = formatTime(
+            lastMsg.created_at,
+          );
+          document.getElementById("lastMessagePreview").textContent =
+            lastMsg.message_body.length > 40
+              ? lastMsg.message_body.substring(0, 40) + "..."
+              : lastMsg.message_body;
+        }
 
         // Scroll to bottom
         const container = document.getElementById("chatContainer");
