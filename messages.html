@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WhatsApp Messages</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+      }
+      .chat {
+        max-width: 800px;
+        margin: auto;
+      }
+      .msg {
+        padding: 10px 14px;
+        margin: 8px 0;
+        border-radius: 10px;
+        max-width: 70%;
+        clear: both;
+      }
+      .inbound {
+        background: #ffffff;
+        float: left;
+      }
+      .outbound {
+        background: #dcf8c6;
+        float: right;
+      }
+      .meta {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📩 WhatsApp Messages</h2>
+
+    <div class="chat" id="chat"></div>
+
+    <script>
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E"; // نفس المفتاح من dashboard.html
+
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      async function loadMessages() {
+        const { data, error } = await supabase
+          .from("whatsapp_messages")
+          .select("*")
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          console.error(error);
+          return;
+        }
+
+        const chat = document.getElementById("chat");
+        chat.innerHTML = "";
+
+        data.forEach((msg) => {
+          const div = document.createElement("div");
+          div.className = `msg ${msg.direction}`;
+          div.innerHTML = `
+        <div>${msg.message_body}</div>
+        <div class="meta">
+          ${msg.direction === "inbound" ? msg.from_number : "BOT"} • 
+          ${new Date(msg.created_at).toLocaleTimeString()}
+        </div>
+      `;
+          chat.appendChild(div);
+        });
+      }
+
+      loadMessages();
+    </script>
+  </body>
+</html>
